@@ -15,15 +15,17 @@
     { "tag": "v1", "new_sqlite_classes": ["ProfileDO"] }
   ],
 
-  // Skill bundles live in R2 (content-addressed). Optional in Phase 1 — the worker
-  // degrades gracefully if the binding is absent, so `wrangler dev` works with no
-  // remote resources provisioned.
-  "r2_buckets": [
-    { "binding": "BUNDLES", "bucket_name": "agentprofile-bundles" }
-  ],
+  // Skill bundles will live in R2 (content-addressed). Left unbound for the first
+  // deploy — the worker degrades gracefully (skills store inline in DO SQLite) and
+  // R2 is only needed for large bundles. To enable:
+  //   npx wrangler r2 bucket create agentprofile-bundles
+  // then uncomment:
+  // "r2_buckets": [{ "binding": "BUNDLES", "bucket_name": "agentprofile-bundles" }],
 
+  // PUBLIC_BASE_URL empty => the worker uses the request origin, so it self-describes
+  // correctly on workers.dev, a custom domain, or localhost with no reconfiguration.
   "vars": {
     "MODE": "cloud",
-    "PUBLIC_BASE_URL": "http://localhost:8787"
+    "PUBLIC_BASE_URL": ""
   }
 }

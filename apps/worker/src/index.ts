@@ -74,7 +74,7 @@ export default {
           {
             profileId,
             token,
-            mcpUrl: `${env.PUBLIC_BASE_URL}/mcp`,
+            mcpUrl: `${env.PUBLIC_BASE_URL || url.origin}/mcp`,
             note: "Save this token — it is shown once. Use it as the Authorization: Bearer header.",
           },
           { headers: JSON_HEADERS },
