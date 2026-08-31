@@ -1,0 +1,130 @@
+<title>Agent Profile Cloud</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#FBFAF8; --surface:#F2F0EC; --ink:#22252B; --muted:#5D6470;
+  --line:#E0DDD6; --accent:#C4571A; --accent-soft:#F7E8DC;
+  --good:#2B7A5B; --code-bg:#EEECE7;
+}
+:root:not([data-theme="light"]){}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#191B1F; --surface:#22252B; --ink:#EAE7E1; --muted:#9AA0AB;
+    --line:#33373F; --accent:#E8834A; --accent-soft:#3A2A1E;
+    --good:#5BBF97; --code-bg:#24272E;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#191B1F; --surface:#22252B; --ink:#EAE7E1; --muted:#9AA0AB;
+  --line:#33373F; --accent:#E8834A; --accent-soft:#3A2A1E;
+  --good:#5BBF97; --code-bg:#24272E;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.65 "IBM Plex Sans",system-ui,sans-serif;margin:0;padding:0 1.25rem}
+main{max-width:46rem;margin:0 auto;padding:3.5rem 0 5rem}
+h1,h2,h3{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;line-height:1.15;text-wrap:balance}
+h1{font-size:2.4rem;font-weight:700;margin:.4rem 0 .6rem}
+h2{font-size:1.5rem;font-weight:700;margin:3rem 0 .8rem;padding-top:1.6rem;border-top:1px solid var(--line)}
+h3{font-size:1.08rem;font-weight:600;margin:1.6rem 0 .4rem}
+p{margin:.7rem 0}
+.eyebrow{font:500 .74rem/1 "IBM Plex Mono",monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.lede{font-size:1.12rem;color:var(--muted);margin:0 0 1.2rem}
+.verdict{background:var(--accent-soft);border-left:3px solid var(--accent);padding:1rem 1.2rem;border-radius:0 6px 6px 0;margin:1.4rem 0}
+.verdict p{margin:.35rem 0}
+table{width:100%;border-collapse:collapse;font-size:.88rem;margin:1rem 0}
+.tablewrap{overflow-x:auto}
+th{text-align:left;font:500 .72rem/1.3 "IBM Plex Mono",monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:.5rem .7rem;border-bottom:2px solid var(--line)}
+td{padding:.55rem .7rem;border-bottom:1px solid var(--line);vertical-align:top}
+td:first-child{font-weight:600;white-space:nowrap}
+.yes{color:var(--good);font-weight:600}.no{color:var(--muted)}
+code,pre{font-family:"IBM Plex Mono",monospace;font-size:.85em;background:var(--code-bg);border-radius:4px}
+code{padding:.1em .35em}
+pre{padding:1rem;overflow-x:auto;line-height:1.5}
+pre code{background:none;padding:0}
+ul{padding-left:1.2rem}li{margin:.35rem 0}
+.arch{display:grid;gap:.6rem;margin:1.2rem 0}
+.tier{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:.8rem 1rem}
+.tier b{font-family:"Bricolage Grotesque",sans-serif}
+.tier span{display:block;color:var(--muted);font-size:.88rem;margin-top:.15rem}
+.phase{display:flex;gap:1rem;margin:1rem 0;align-items:baseline}
+.phase .n{font:500 .8rem/1 "IBM Plex Mono",monospace;color:var(--accent);white-space:nowrap;min-width:5.5rem}
+a{color:var(--accent)}
+.foot{margin-top:3rem;padding-top:1.2rem;border-top:1px solid var(--line);color:var(--muted);font-size:.82rem}
+</style>
+<main>
+<p class="eyebrow">Research &amp; Build Plan · Aug 2026</p>
+<h1>Agent Profile Cloud</h1>
+<p class="lede">One synced profile — skills, API credentials, and memory — for every agent tool you use. What exists today, and how to build the missing piece on Cloudflare.</p>
+
+<div class="verdict">
+<p><b>Verdict:</b> No single platform does all three today. Memory sync is solved (Mem0/OpenMemory, Supermemory), skills distribution is solved (Skilldex, git-based registries, the Agent Skills spec), and agent-aware secret managers exist (Infisical, Doppler, 1Password) — but nothing composes them into one identity-anchored profile delivered over a single MCP server. That's a genuine gap, and Cloudflare's stack is a near-ideal fit for building it.</p>
+</div>
+
+<h2>What exists today</h2>
+<div class="tablewrap">
+<table>
+<tr><th>Product</th><th>Skills</th><th>Secrets</th><th>Memory</th><th>Sync mechanism</th><th>Notes</th></tr>
+<tr><td>Mem0 / OpenMemory</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td>MCP server + SDK</td><td>Most mature cross-tool memory; per-client access control; free 10k memories, then $19–249/mo</td></tr>
+<tr><td>Supermemory</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td>MCP, one command</td><td>Easiest setup ("no login"); memory + RAG bundled; usage pricing</td></tr>
+<tr><td>Zep</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td>SDK/API, MCP</td><td>Best temporal recall; dev backend, not a personal profile; from $25/mo</td></tr>
+<tr><td>Skilldex (spm)</td><td class="yes">✓</td><td class="no">—</td><td class="no">—</td><td>CLI + registry + MCP</td><td>Skill package manager, global/shared/project scopes; open source</td></tr>
+<tr><td>Agent Plugins 1.0</td><td class="yes">✓</td><td class="no">—</td><td class="no">—</td><td>Package format</td><td>Skills + MCP config in one portable bundle; a spec, not a service</td></tr>
+<tr><td>Infisical</td><td class="no">—</td><td class="yes">✓</td><td class="no">—</td><td>MCP + CLI inject</td><td>Open source, self-hostable, MCP endpoint governance</td></tr>
+<tr><td>Doppler / 1Password</td><td class="no">—</td><td class="yes">✓</td><td class="no">—</td><td>CLI wrapper, MCP</td><td>Runtime injection into any agent; 1Password has JIT delivery for agents</td></tr>
+<tr><td>secr.dev</td><td class="no">—</td><td class="yes">✓</td><td class="no">—</td><td>Broker</td><td>Agent-specific: per-agent allowlists, human-in-the-loop; early</td></tr>
+<tr><td>Executor</td><td class="no">—</td><td class="yes">✓</td><td class="no">—</td><td>MCP; cloud/CLI/desktop/CF Worker</td><td>Closest competitor: add a tool (MCP/OpenAPI/GraphQL) once with credentials + per-tool policy, shared to all agents over MCP. MIT, 3.5k★, active. No memory; "skills" = tool discovery, not portable SKILL.md bundles; creds centralized but not zero-knowledge</td></tr>
+<tr><td>dotagents / .agents</td><td class="yes">✓</td><td class="no">—</td><td class="no">—</td><td>Local dotfiles</td><td>Fans one <code>~/.agents/</code> dir out to each tool's format; no cloud</td></tr>
+</table>
+</div>
+<p>Relevant standards worth building on: the <b>Agent Skills spec</b> (SKILL.md, now stewarded by the Agentic AI Foundation, ~40 compatible tools), <b>Agent Plugins 1.0</b> (portable skills + MCP-config bundles), <b>AGENTS.md</b>, and <b>MCP</b> as the universal transport. Cloudflare itself opened a private beta of "Agent Memory" in April 2026 — a sign this layer is coming to platforms, but still memory-only.</p>
+
+<h3>The pragmatic stack right now</h3>
+<p>If you want ~90% of the outcome today with zero building: <b>Supermemory or OpenMemory</b> for memory (one MCP server, every client), <b>Infisical or Doppler</b> for keys (runtime injection instead of pasting keys into each tool's config), and a <b>private git repo + Skilldex/dotagents</b> for skills. Three logins instead of one, but each piece is mature.</p>
+
+<h2>The gap a unified product fills</h2>
+<ul>
+<li>One identity → one profile → one MCP endpoint that serves all three asset types to any client.</li>
+<li>Cross-format skill translation (SKILL.md ↔ Cursor rules ↔ Codex ↔ AGENTS.md) — today this is manual.</li>
+<li>Per-client access control spanning all three types ("Cursor gets these 5 skills and the GitHub token, but no health memories").</li>
+<li>Versioning and team sharing of the whole profile, plus audit of what each agent read.</li>
+<li>Skill trust: signing/scanning third-party skills for prompt-injection before they enter your profile.</li>
+</ul>
+
+<h2>Building it on Cloudflare</h2>
+<p>The delivery surface is a single <b>remote MCP server on Workers</b> (plus a thin CLI for offline sync). Every agent tool that speaks MCP — Claude Code, Cursor, Codex, custom agents — adds one URL and authenticates once.</p>
+
+<div class="arch">
+<div class="tier"><b>Edge / API</b><span>Workers: remote MCP server (Agents SDK <code>McpAgent</code>) + REST API + web dashboard (static assets). Turnstile on signup, WAF + rate limiting in front.</span></div>
+<div class="tier"><b>Identity &amp; auth</b><span>Workers OAuth provider for MCP clients (the Agents SDK ships an OAuth flow); Cloudflare Access in front of the dashboard; per-device tokens with scoped grants per client.</span></div>
+<div class="tier"><b>Per-user state</b><span>One Durable Object per user profile: the consistency point for grants, sync cursors, audit log, and live WebSocket push so edits propagate to connected tools instantly.</span></div>
+<div class="tier"><b>Skills</b><span>R2 for skill bundles (content-addressed, versioned), D1 for metadata/registry/scopes. A translation layer renders SKILL.md into each client's native format at fetch time.</span></div>
+<div class="tier"><b>Secrets</b><span>Envelope encryption in your own layer: per-user data keys wrap each credential; the master KEK lives in Workers Secrets/Secrets Store. Ciphertext in D1 or DO storage. JIT delivery only to granted clients, every read audited. (Cloudflare Secrets Store itself is for <em>your</em> platform keys — 100 secrets/account, one store — not tenant data.)</span></div>
+<div class="tier"><b>Memory</b><span>D1 (or DO SQLite) for structured facts with provenance + timestamps; Vectorize for embeddings (Workers AI embedding models) so agents get semantic recall via MCP tools like <code>remember</code> / <code>recall</code>.</span></div>
+<div class="tier"><b>Async work</b><span>Queues + Workflows for embedding pipelines, skill scanning (prompt-injection checks via Workers AI), and format translation. Cron for key-rotation reminders and memory consolidation.</span></div>
+</div>
+
+<h3>MCP tool surface (v1)</h3>
+<pre><code>skills:   list_skills, get_skill(format=claude|cursor|agents-md), install_skill
+secrets:  list_credentials (metadata only), get_credential  → audited, grant-gated
+memory:   remember(fact, scope), recall(query), forget(id)
+profile:  whoami, sync_status, list_grants</code></pre>
+
+<h3>Security model</h3>
+<ul>
+<li><b>Grants are per-client, per-asset-type.</b> Each connected tool gets its own token; the DO enforces what it may read. Default-deny for secrets.</li>
+<li><b>Zero plaintext at rest</b> for credentials; decryption happens in the Worker only at delivery, never logged.</li>
+<li><b>Audit trail in the DO</b>: every secret read and memory query, queryable from the dashboard.</li>
+<li><b>Skill quarantine</b>: third-party skills pass an automated injection scan before activation.</li>
+</ul>
+
+<h3>Phased roadmap</h3>
+<div class="phase"><span class="n">Phase 1 · 1–2 wk</span><p><b>Personal MVP.</b> One Worker MCP server, DO per profile, D1 + R2, bearer-token auth. Skills + memory only, Claude Code and Cursor as the two test clients.</p></div>
+<div class="phase"><span class="n">Phase 2 · 2–3 wk</span><p><b>Secrets + grants.</b> Envelope encryption, per-client grants, audit log, OAuth flow for MCP clients, minimal dashboard.</p></div>
+<div class="phase"><span class="n">Phase 3 · 3–4 wk</span><p><b>Seamlessness.</b> Format translation (Cursor rules, AGENTS.md), CLI for offline/dotfile sync, WebSocket live push, semantic memory via Vectorize.</p></div>
+<div class="phase"><span class="n">Phase 4</span><p><b>Multi-user.</b> Team sharing, skill registry with signing/scanning, billing. Only if it graduates from personal tool to product.</p></div>
+
+<h3>Cost</h3>
+<p>For personal/small-team use this fits comfortably in the <b>Workers Paid plan (~$5/mo)</b> — D1, R2, Vectorize, Queues, and DO usage at this scale round to pennies. Verify current limits in the Cloudflare docs before committing to numbers.</p>
+
+<p class="foot">Research compiled Aug 31, 2026 from agentskills.io, Skilldex (arXiv 2604.16911), Mem0/OpenMemory, Supermemory, Zep, Infisical, Doppler, secr.dev, dotagents, Agent Plugins 1.0, and the Portable Agent Memory proposal (arXiv 2605.11032). Planning only — no code written.</p>
+</main>

@@ -1,0 +1,16 @@
+{
+  "name": "agentprofile-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Your agent's identity, everywhere. One profile — skills, credentials, memory — synced to every agent tool.",
+  "license": "Apache-2.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm --workspace apps/worker run dev",
+    "deploy": "npm --workspace apps/worker run deploy",
+    "typecheck": "npm --workspaces --if-present run typecheck"
+  }
+}

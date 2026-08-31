@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "agentprofile",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+
+  // One Durable Object per user profile — the source of truth for that profile's
+  // skills, memory, and (Phase 3) credentials. Uses DO-embedded SQLite.
+  "durable_objects": {
+    "bindings": [{ "name": "PROFILE", "class_name": "ProfileDO" }]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["ProfileDO"] }
+  ],
+
+  // Skill bundles live in R2 (content-addressed). Optional in Phase 1 — the worker
+  // degrades gracefully if the binding is absent, so `wrangler dev` works with no
+  // remote resources provisioned.
+  "r2_buckets": [
+    { "binding": "BUNDLES", "bucket_name": "agentprofile-bundles" }
+  ],
+
+  "vars": {
+    "MODE": "cloud",
+    "PUBLIC_BASE_URL": "http://localhost:8787"
+  }
+}

@@ -1,0 +1,245 @@
+<title>Profile Cloud Technical Spec</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#FBFAF8; --surface:#F2F0EC; --ink:#22252B; --muted:#5D6470;
+  --line:#E0DDD6; --accent:#C4571A; --accent-soft:#F7E8DC;
+  --good:#2B7A5B; --code-bg:#EEECE7;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#191B1F; --surface:#22252B; --ink:#EAE7E1; --muted:#9AA0AB;
+    --line:#33373F; --accent:#E8834A; --accent-soft:#3A2A1E;
+    --good:#5BBF97; --code-bg:#24272E;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#191B1F; --surface:#22252B; --ink:#EAE7E1; --muted:#9AA0AB;
+  --line:#33373F; --accent:#E8834A; --accent-soft:#3A2A1E;
+  --good:#5BBF97; --code-bg:#24272E;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.65 "IBM Plex Sans",system-ui,sans-serif;margin:0;padding:0 1.25rem}
+main{max-width:48rem;margin:0 auto;padding:3.5rem 0 5rem}
+h1,h2,h3,h4{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;line-height:1.15;text-wrap:balance}
+h1{font-size:2.4rem;font-weight:700;margin:.4rem 0 .6rem}
+h2{font-size:1.5rem;font-weight:700;margin:3rem 0 .8rem;padding-top:1.6rem;border-top:1px solid var(--line)}
+h3{font-size:1.1rem;font-weight:600;margin:1.8rem 0 .4rem}
+h4{font-size:.95rem;font-weight:600;margin:1.2rem 0 .3rem}
+p{margin:.7rem 0}
+.eyebrow{font:500 .74rem/1 "IBM Plex Mono",monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.lede{font-size:1.12rem;color:var(--muted);margin:0 0 1.2rem}
+.verdict{background:var(--accent-soft);border-left:3px solid var(--accent);padding:1rem 1.2rem;border-radius:0 6px 6px 0;margin:1.4rem 0}
+table{width:100%;border-collapse:collapse;font-size:.87rem;margin:1rem 0}
+.tablewrap{overflow-x:auto}
+th{text-align:left;font:500 .72rem/1.3 "IBM Plex Mono",monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:.5rem .7rem;border-bottom:2px solid var(--line)}
+td{padding:.55rem .7rem;border-bottom:1px solid var(--line);vertical-align:top}
+td:first-child{font-weight:600;white-space:nowrap}
+code,pre{font-family:"IBM Plex Mono",monospace;font-size:.84em;background:var(--code-bg);border-radius:4px}
+code{padding:.1em .35em}
+pre{padding:1rem;overflow-x:auto;line-height:1.5;margin:.8rem 0}
+pre code{background:none;padding:0}
+ul,ol{padding-left:1.2rem}li{margin:.35rem 0}
+.tier{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:.8rem 1rem;margin:.6rem 0}
+.tier b{font-family:"Bricolage Grotesque",sans-serif}
+.tier span{display:block;color:var(--muted);font-size:.88rem;margin-top:.15rem}
+.flow{font-family:"IBM Plex Mono",monospace;font-size:.82rem;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:1rem;overflow-x:auto;line-height:1.7;margin:1rem 0;white-space:pre}
+.step{display:flex;gap:1rem;margin:.9rem 0;align-items:baseline}
+.step .n{font:500 .8rem/1 "IBM Plex Mono",monospace;color:var(--accent);white-space:nowrap;min-width:4.6rem}
+a{color:var(--accent)}
+.foot{margin-top:3rem;padding-top:1.2rem;border-top:1px solid var(--line);color:var(--muted);font-size:.82rem}
+.note{color:var(--muted);font-size:.88rem}
+</style>
+<main>
+<p class="eyebrow">Engineering Spec · Aug 2026</p>
+<h1>Profile Cloud Technical Spec</h1>
+<p class="lede">The complete Cloudflare build: every product used, the data model, the crypto, the sync protocol, and the phased implementation plan. Companion to the architecture report and launch plan.</p>
+
+<div class="verdict">
+<p><b>Shape of the system:</b> one Workers monorepo serving a remote MCP server (Agents SDK <code>McpAgent</code> on Durable Objects), a REST/dashboard Worker, and a background pipeline (Queues + Workflows + Cron). One Durable Object per user profile is the source of truth; D1 holds the global registry and account data; R2 holds skill bundles; Vectorize holds memory embeddings; Workers AI does embeddings and skill scanning. The same codebase deploys two ways: multi-tenant cloud, or single-tenant into a user's own account via a Deploy-to-Cloudflare button.</p>
+</div>
+
+<h2>1 · Cloudflare product map</h2>
+<div class="tablewrap"><table>
+<tr><th>Product</th><th>Role in the system</th></tr>
+<tr><td>Workers</td><td>All compute: MCP server, REST API, OAuth endpoints, dashboard (static assets binding)</td></tr>
+<tr><td>Durable Objects</td><td><code>ProfileDO</code> — one per user; grants, audit log, sync cursors, WebSocket push, per-profile SQLite</td></tr>
+<tr><td>Agents SDK</td><td><code>McpAgent</code> base class for the MCP server (Streamable HTTP transport, OAuth handshake, DO-backed state)</td></tr>
+<tr><td>D1</td><td>Global relational data: accounts, skill registry metadata, versions, public listings</td></tr>
+<tr><td>R2</td><td>Skill bundles (content-addressed tarballs), rendered per-client formats, profile export snapshots</td></tr>
+<tr><td>Vectorize</td><td>Memory embeddings index, one namespace per profile; semantic <code>recall</code></td></tr>
+<tr><td>Workers AI</td><td><code>@cf/baai/bge-m3</code> embeddings; LLM pass for skill prompt-injection scanning and memory consolidation</td></tr>
+<tr><td>Queues</td><td>Async fan-out: embed memory, render skill formats, scan uploads, write audit exports</td></tr>
+<tr><td>Workflows</td><td>Multi-step durable jobs: skill publish pipeline (upload→scan→sign→list), profile import/export</td></tr>
+<tr><td>Cron Triggers</td><td>Nightly memory consolidation, key-rotation reminders, registry re-scans</td></tr>
+<tr><td>KV</td><td>Hot read cache: rendered skill manifests, public registry pages, OAuth client metadata</td></tr>
+<tr><td>Workers OAuth Provider</td><td><code>workers-oauth-provider</code> — the MCP-client OAuth flow (Claude Code/Cursor connect + consent screen)</td></tr>
+<tr><td>Secrets Store / Worker secrets</td><td>Platform-side keys only: KEK for envelope encryption, OAuth signing keys, webhook secrets</td></tr>
+<tr><td>Turnstile</td><td>Signup + skill-publish abuse protection</td></tr>
+<tr><td>WAF + Rate Limiting</td><td>In front of <code>api.*</code>; per-token rate rules; bot management on registry endpoints</td></tr>
+<tr><td>Cloudflare Access</td><td>Admin/internal dashboards (Zero Trust), not end-user auth</td></tr>
+<tr><td>Analytics Engine</td><td>Product metrics: syncs, second-client connections, tool-call counts (high-cardinality, no PII)</td></tr>
+<tr><td>Workers Logs / Tail Workers</td><td>Observability; tail worker strips any sensitive fields before sink</td></tr>
+<tr><td>Email Routing + Email Workers</td><td>Inbound support@ and security@ into a triage DO; outbound via Email Service for magic links/alerts</td></tr>
+</table></div>
+<p class="note">Verify current limits/pricing against developers.cloudflare.com before implementation — numbers below are design assumptions, not gospel.</p>
+
+<h2>2 · Topology &amp; request flow</h2>
+<div class="flow">agent tool (Claude Code / Cursor / Codex)
+   │  Streamable HTTP  (mcp.profilecloud.dev/mcp)
+   ▼
+edge Worker ── workers-oauth-provider (token check, client identity)
+   │  idFromName(userId)
+   ▼
+ProfileDO (McpAgent) ─── per-profile SQLite: grants, facts, audit, cursors
+   ├── R2      skill bundles (read-through KV cache)
+   ├── D1      registry + account metadata
+   ├── Vectorize  recall() semantic search
+   ├── Queues  → embed / render / scan consumers
+   └── WebSocket broadcast → other connected clients (live sync)</div>
+<ul>
+<li><b>Routing:</b> <code>mcp.*</code> → MCP Worker; <code>api.*</code> → REST Worker; <code>app.*</code> → dashboard (static assets + API proxy); <code>registry.*</code> → public skill registry (cacheable, KV-backed).</li>
+<li><b>Every MCP session is pinned to one ProfileDO</b> via <code>idFromName(userId)</code> — strong consistency for grants and audit without cross-region coordination. Smart Placement left off (DO is the state anchor).</li>
+<li><b>Streaming end-to-end:</b> never buffer responses (Workers 100s/524 ceiling); MCP transport is Streamable HTTP only, no SSE legacy.</li>
+</ul>
+
+<h2>3 · Identity, auth, grants</h2>
+<div class="step"><span class="n">Account</span><p>Dashboard signup via GitHub/Google OAuth (Turnstile-gated). Row in D1 <code>accounts</code>; <code>ProfileDO</code> created lazily on first use.</p></div>
+<div class="step"><span class="n">Client connect</span><p>Agent tool adds the MCP URL → <code>workers-oauth-provider</code> runs the OAuth flow (dynamic client registration) → consent screen shows requested scopes → tool receives its own access/refresh token pair. Each tool = one <b>grant</b>.</p></div>
+<div class="step"><span class="n">Grant model</span><p>Grant = <code>{client_id, label ("Cursor · laptop"), scopes, asset filters, created, last_seen}</code>. Scopes: <code>skills:read</code>, <code>memory:read</code>, <code>memory:write</code>, <code>secrets:read</code> (default-deny), <code>profile:admin</code> (dashboard/CLI only). Asset filters narrow further: skill tags, memory scopes (<code>work</code>/<code>personal</code>/<code>dev</code>), named credentials.</p></div>
+<div class="step"><span class="n">Enforcement</span><p>Every MCP tool call resolves the grant inside the DO before touching data; every allow/deny lands in the <code>audit</code> table. Revoke in dashboard → DO closes that client's WebSocket and rejects its token instantly (no cache-TTL lag).</p></div>
+
+<h2>4 · ProfileDO data model</h2>
+<pre><code>-- inside each ProfileDO (SQLite via this.sql)
+CREATE TABLE grants   (client_id TEXT PRIMARY KEY, label TEXT, scopes TEXT,
+                       filters TEXT, created INTEGER, last_seen INTEGER, revoked INTEGER);
+CREATE TABLE facts    (id TEXT PRIMARY KEY, body TEXT, scope TEXT,
+                       source_client TEXT, created INTEGER, updated INTEGER,
+                       superseded_by TEXT, embedding_status TEXT);
+CREATE TABLE skills   (slug TEXT, version TEXT, r2_key TEXT, tags TEXT,
+                       enabled INTEGER, installed INTEGER, PRIMARY KEY (slug, version));
+CREATE TABLE secrets  (name TEXT PRIMARY KEY, ciphertext BLOB, wrapped_dek BLOB,
+                       algo TEXT, created INTEGER, rotated INTEGER, meta TEXT);
+CREATE TABLE audit    (ts INTEGER, client_id TEXT, action TEXT, target TEXT, allowed INTEGER);
+CREATE TABLE cursors  (client_id TEXT PRIMARY KEY, last_sync INTEGER);</code></pre>
+<ul>
+<li><b>Memory writes</b>: insert fact → enqueue embed job → consumer runs <code>bge-m3</code> → upsert into Vectorize namespace <code>user:&lt;id&gt;</code> with metadata <code>{fact_id, scope}</code> → mark <code>embedding_status=done</code>. <code>recall()</code> = vector query filtered by the caller's granted scopes, hydrate bodies from SQLite, return with provenance.</li>
+<li><b>Conflict/supersede</b>: new fact contradicting an old one links <code>superseded_by</code>; nightly cron runs an LLM consolidation pass (merge duplicates, decay stale facts) inside a Workflow so it's resumable.</li>
+<li><b>Live sync</b>: dashboard and CLI hold WebSockets to the DO (<code>onConnect</code>/<code>broadcast</code>); a skill toggle or new fact pushes <code>{type:"changed", kind, id}</code> so other tools refetch on next turn.</li>
+</ul>
+
+<h3>Pluggable memory providers</h3>
+<p>Memory is a <b>provider interface</b>, not a hard dependency on the built-in store. Many users already live in Mem0/OpenMemory, Supermemory, or Zep — the profile should sync <em>their</em> memory, not force a migration. Strategically this also repositions the product: complement to the memory services (they become backends), competitor only to fragmentation.</p>
+<pre><code>interface MemoryProvider {
+  remember(fact, scope, provenance): Promise&lt;id&gt;
+  recall(query, scopes, limit): Promise&lt;Fact[]&gt;
+  forget(id): Promise&lt;void&gt;
+  health(): Promise&lt;Status&gt;
+}
+// adapters: builtin (DO SQLite + Vectorize) — default, zero-config
+//           mem0        (platform API; scope → user_id/org mapping)
+//           supermemory (Universal Memory API)
+//           zep         (graph API; provenance from temporal edges)</code></pre>
+<ul>
+<li><b>Config per profile</b> (dashboard/CLI): pick provider; the provider's API key is stored as an ordinary encrypted credential in the profile's own secrets table — the E2E crypto layer covers it, and the DO decorates outbound calls via the JIT path.</li>
+<li><b>The grant/audit layer stays ours regardless of backend</b>: per-client scope filters and audit logging wrap every <code>recall</code>/<code>remember</code> in the DO before the adapter is invoked — external providers don't have per-client access control, so this is added value, not lost value.</li>
+<li><b>MCP surface unchanged</b>: agents still call <code>remember</code>/<code>recall</code>; routing is invisible to clients.</li>
+<li><b>Mirror mode (optional)</b>: writes go to the external provider <em>and</em> the built-in store (via Queues), so users get portability/export and can switch providers without loss. Import tooling maps Mem0/Supermemory exports into the built-in schema.</li>
+<li><b>Caveats</b>: external recall adds a network hop (cache hot facts in the DO with short TTL); scope filtering is emulated where a provider lacks it (tag on write, filter on read); rate limits surfaced via <code>health()</code> in <code>sync_status</code>.</li>
+<li><b>Build order</b>: builtin ships in P1–P2 as before; adapter interface lands in P2; Mem0 + Supermemory adapters in P4 (good community-contribution surface — one adapter per PR).</li>
+</ul>
+
+<h2>5 · Crypto design (zero-knowledge secrets)</h2>
+<div class="step"><span class="n">Keys</span><p>On account creation the <b>client</b> (CLI or dashboard WebCrypto) derives a master key from a passphrase (Argon2id) or generates a random 256-bit key stored in the OS keychain, with a printable recovery code. The master key <b>never leaves the device</b>.</p></div>
+<div class="step"><span class="n">Per-secret</span><p>Each credential gets a fresh DEK (AES-256-GCM). Secret is encrypted with the DEK; the DEK is wrapped with the master key. Server stores <code>{ciphertext, wrapped_dek}</code> — both opaque to us.</p></div>
+<div class="step"><span class="n">Delivery</span><p><code>get_credential</code> returns the two blobs to a granted client; the client-side SDK (shipped inside the CLI/MCP-client shim) unwraps and decrypts locally, injects into the tool's env just-in-time, never writes plaintext to disk. Read is audited in the DO.</p></div>
+<div class="step"><span class="n">Sharing (later)</span><p>Team sharing = wrap the DEK to each member's public key (X25519), so the server still never sees plaintext. This is the Bitwarden org model.</p></div>
+<div class="step"><span class="n">Platform KEK</span><p>A server-side KEK (in Workers Secrets/Secrets Store) adds an outer envelope on the stored blobs — defense in depth against a D1/DO storage leak, but it alone can never decrypt (client layer beneath).</p></div>
+
+<h2>6 · MCP tool surface (keep it ≤ 9 tools)</h2>
+<pre><code>get_context()        → skills manifest + top memories for this client (one-call bootstrap)
+list_skills()        → granted skills, versions, formats
+get_skill(slug, format=claude|cursor|agents-md|plugin)
+remember(fact, scope?)          → fact id (writes gated by memory:write)
+recall(query, scope?, limit?)   → ranked facts with provenance
+forget(id)
+list_credentials()   → names + metadata only, never values
+get_credential(name) → {ciphertext, wrapped_dek}   (secrets:read + per-name filter)
+sync_status()        → cursor, pending changes, grant summary</code></pre>
+<p>Small surface is deliberate — big tool lists exhaust agent context windows and fail Connectors review. Skill <em>installation</em>, grant management, and publishing live in the REST API/CLI/dashboard, not MCP. Two lessons adopted from Executor's design: pin the serialized byte-size of tool descriptions in tests (every description byte is paid on every client turn), and keep long-form guidance behind a docs-style tool rather than in always-loaded descriptions. Where we go further: <code>recall</code> is semantic (Vectorize embeddings) — Executor's tool search is substring matching, so search quality is a visible edge.</p>
+
+<h2>6.5 · Insanely-easy onboarding</h2>
+<p>Goal: <b>under 60 seconds from "heard about it" to a fact synced between two tools</b> — no signup required for the first taste. Several patterns below are adapted from a deep-dive of Executor's codebase (the best onboarding in the adjacent space); the rest go beyond it.</p>
+<div class="step"><span class="n">Path A</span><p><b>The agent installs it.</b> The landing page's primary CTA is a copy-paste <em>prompt</em>, not a command: pasted into Claude Code/Cursor, it makes the user's own agent create the profile, write the MCP config for every detected client, verify the connection, and teach a first memory. (Executor ships this "set up with your agent" prompt — near-zero engineering cost, huge win.)</p></div>
+<div class="step"><span class="n">Path B</span><p><b>One command, no login.</b> <code>npx profilecloud</code> creates an <em>anonymous instant profile</em>: server mints an unclaimed profile whose bearer token doubles as the claim key; the CLI auto-detects installed MCP clients and writes their configs (add-mcp-style), prints the money-shot test ("now ask Cursor what you just told Claude Code"). Sign in later to claim the profile — trying it costs nothing, not even an email. Secrets features stay locked until the profile is claimed and E2E keys exist.</p></div>
+<div class="step"><span class="n">Path C</span><p><b>Web-first.</b> Sign in at the dashboard → a two-step connect page per client with the exact command pre-filled and a copy button; connection options are <em>encoded in the MCP URL itself</em> as query params (e.g. <code>?scopes=dev,work&amp;approval=browser</code>) so changing behavior never needs a settings round-trip. Live checkmark flips when the client's first call lands (the DO knows instantly).</p></div>
+<ul>
+<li><b>Kill the restart friction</b>: most MCP clients load servers at startup. The CLI/prompt warns explicitly per client, offers to restart Claude Code itself, and the dashboard shows "waiting for first call…" so users aren't left guessing.</li>
+<li><b>One-call bootstrap stays</b>: <code>get_context()</code> returns everything a fresh client needs in a single tool call.</li>
+<li><b>Approval UX</b>: sensitive actions (first credential read from a new client) pause and return an approval URL; the dashboard long-polls the decision — works even in clients with no elicitation support. Default is <em>human</em> approval, not model self-approval (Executor defaults to the model deciding — we make the safe choice the default).</li>
+<li><b>Self-host equally easy</b>: idempotent <code>deploy:setup</code> that provisions D1/R2/Vectorize/DO, generates keys, deploys, and prints the <em>one</em> remaining manual step; docs list exact failure strings. Deploy-to-Cloudflare button for the click-only crowd.</li>
+<li><b>Doctor everywhere</b>: <code>pc doctor</code> checks configs, token validity, client versions, and last-call timestamps per client, and prints the fix for each failure.</li>
+</ul>
+
+<h2>7 · Skills pipeline</h2>
+<ol>
+<li><b>Publish</b> (CLI <code>pc skill publish</code> or dashboard): tarball → R2 staging key, row in D1.</li>
+<li><b>Workflow steps</b>: validate SKILL.md frontmatter → Workers AI prompt-injection scan (flag/quarantine) → render to each client format (Cursor rules, AGENTS.md, Agent Plugins bundle) into R2 → Sigstore-sign (publisher identity from CI OIDC or account key) → flip D1 row to <code>live</code> → purge KV cache.</li>
+<li><b>Fetch</b>: <code>get_skill</code> reads KV (rendered manifest) → falls through to R2. ETags + version pinning; a profile pins <code>slug@version</code> or tracks <code>latest</code>.</li>
+<li><b>Registry</b>: public read-only Worker over D1 + KV, heavy Cache API usage; Turnstile + rate limits on publish; report/takedown flow writes quarantine flags that propagate to installs on next sync.</li>
+</ol>
+
+<h2>8 · Two deployment modes, one codebase</h2>
+<div class="tier"><b>Cloud (multi-tenant)</b><span>Our account: Workers + D1 + R2 + Vectorize shared, isolation enforced at the DO boundary and by per-tenant Vectorize namespaces/R2 prefixes. Billing via Stripe; plan flags stored in D1 and cached in the DO.</span></div>
+<div class="tier"><b>Self-host (single-tenant)</b><span>Deploy-to-Cloudflare button: the button parses <code>wrangler.jsonc</code> and auto-provisions the user's own DO/D1/R2/Vectorize/Queues. <code>MODE=selfhost</code> env flag: registry points at the public cloud registry (read-only), no Stripe, single account auto-created, everything else identical. Fits the free Workers tier for personal use; paid Workers plan (~$5/mo) removes limits.</span></div>
+<pre><code>// wrangler.jsonc (abridged)
+{
+  "name": "profile-cloud",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "durable_objects": { "bindings": [{ "name": "PROFILE", "class_name": "ProfileDO" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ProfileDO"] }],
+  "d1_databases":  [{ "binding": "DB", "database_name": "profilecloud" }],
+  "r2_buckets":    [{ "binding": "BUNDLES", "bucket_name": "pc-bundles" }],
+  "vectorize":     [{ "binding": "MEMORY_INDEX", "index_name": "pc-memory" }],
+  "queues": { "producers": [{ "binding": "JOBS", "queue": "pc-jobs" }],
+              "consumers": [{ "queue": "pc-jobs", "max_batch_size": 20 }] },
+  "workflows": [{ "binding": "SKILL_PUBLISH", "class_name": "SkillPublishWorkflow" }],
+  "ai": { "binding": "AI" },
+  "kv_namespaces": [{ "binding": "CACHE" }],
+  "triggers": { "crons": ["0 3 * * *"] },
+  "assets": { "directory": "./dashboard/dist" },
+  "observability": { "enabled": true }
+}</code></pre>
+
+<h2>9 · Repo structure</h2>
+<pre><code>profile-cloud/
+├── apps/
+│   ├── worker/          # MCP + REST + OAuth + registry (one Worker, route-split)
+│   ├── dashboard/       # React + agents/react useAgent() for live state
+│   └── cli/             # `pc` — login, sync, secret add, skill publish, doctor
+├── packages/
+│   ├── crypto/          # client-side E2E (WebCrypto + Argon2id) — the audited core
+│   ├── sdk/             # typed client for REST + MCP shim + JIT secret injection
+│   ├── skill-format/    # SKILL.md parse + render to cursor/agents-md/plugin
+│   └── shared/          # zod schemas shared by DO, CLI, dashboard
+├── deploy/              # Deploy-to-Cloudflare templates (selfhost)
+└── docs/                # Mintlify; per-client quickstarts; llms.txt</code></pre>
+
+<h2>10 · Observability, limits, cost</h2>
+<ul>
+<li><b>Metrics</b> (Analytics Engine, no PII): tool calls by type, sync latency, second-client connections (north star), registry installs. Dashboards via GraphQL API.</li>
+<li><b>Logs</b>: Workers Logs on; a Tail Worker redacts <code>ciphertext</code>/<code>wrapped_dek</code>/token fields before any sink. Never log secret values anywhere — enforced by a lint rule on the logger.</li>
+<li><b>Design limits to respect</b>: DO SQLite ~10GB/object (fine — one user's profile is MBs); Vectorize metadata filter on <code>scope</code>; Queues batch ≤ 100; Workflows for anything &gt; 30s; Worker response streaming to stay under the 100s ceiling; R2 multipart for bundles &gt; 100MB (rare).</li>
+<li><b>Cost model</b>: personal self-host ≈ free tier; cloud COGS per active user ≈ pennies/month (DO requests + duration dominate) — gross margin is a non-issue at the $12/$29 price points.</li>
+</ul>
+
+<h2>11 · Build plan (engineering phases)</h2>
+<div class="step"><span class="n">P1 · wk 1–2</span><p><b>Skeleton that syncs.</b> ProfileDO + McpAgent with <code>get_context / list_skills / get_skill / remember / recall (SQLite LIKE, no vectors yet)</code>; bearer tokens; R2 skill store; CLI login + push. Demo: fact taught in Claude Code recalled in Cursor.</p></div>
+<div class="step"><span class="n">P2 · wk 3–4</span><p><b>Real auth + memory.</b> workers-oauth-provider flow with consent screen; grants + audit; Queues + Workers AI embeddings + Vectorize recall; WebSocket live push; dashboard v1 (grants, facts, skills).</p></div>
+<div class="step"><span class="n">P3 · wk 4–5</span><p><b>Secrets.</b> <code>packages/crypto</code> (client E2E), <code>get_credential</code> + JIT injection in CLI/SDK, audit views, KEK outer envelope. Behind a beta flag until the external audit.</p></div>
+<div class="step"><span class="n">P4 · wk 5–6</span><p><b>Self-host + registry.</b> Deploy-to-Cloudflare template + <code>MODE=selfhost</code>; skill publish Workflow (validate→scan→render→sign); public registry Worker; format translators.</p></div>
+<div class="step"><span class="n">P5 · wk 6–8</span><p><b>Launch hardening.</b> Rate limits/WAF/Turnstile; Analytics Engine dashboards; Tail Worker redaction; Connectors Directory requirements (privacy policy, docs, test account); Stripe + plan gating; load test the DO hot paths.</p></div>
+
+<p class="foot">Grounded in the Cloudflare Agents SDK (Agent/McpAgent on Durable Objects: DO-backed SQLite via <code>this.sql</code>, <code>schedule()</code>, WebSocket <code>onConnect/broadcast</code>, MCP integration), Workers OAuth Provider, and current platform docs — re-verify limits and API signatures at developers.cloudflare.com during implementation. Planning only — no code written. Companions: architecture report · launch plan.</p>
+</main>

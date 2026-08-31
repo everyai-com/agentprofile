@@ -1,0 +1,144 @@
+<title>Profile Cloud Launch Plan</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#FBFAF8; --surface:#F2F0EC; --ink:#22252B; --muted:#5D6470;
+  --line:#E0DDD6; --accent:#C4571A; --accent-soft:#F7E8DC;
+  --good:#2B7A5B; --bad:#A63A3A; --code-bg:#EEECE7;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#191B1F; --surface:#22252B; --ink:#EAE7E1; --muted:#9AA0AB;
+    --line:#33373F; --accent:#E8834A; --accent-soft:#3A2A1E;
+    --good:#5BBF97; --bad:#E08585; --code-bg:#24272E;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#191B1F; --surface:#22252B; --ink:#EAE7E1; --muted:#9AA0AB;
+  --line:#33373F; --accent:#E8834A; --accent-soft:#3A2A1E;
+  --good:#5BBF97; --bad:#E08585; --code-bg:#24272E;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.65 "IBM Plex Sans",system-ui,sans-serif;margin:0;padding:0 1.25rem}
+main{max-width:46rem;margin:0 auto;padding:3.5rem 0 5rem}
+h1,h2,h3{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;line-height:1.15;text-wrap:balance}
+h1{font-size:2.4rem;font-weight:700;margin:.4rem 0 .6rem}
+h2{font-size:1.5rem;font-weight:700;margin:3rem 0 .8rem;padding-top:1.6rem;border-top:1px solid var(--line)}
+h3{font-size:1.08rem;font-weight:600;margin:1.6rem 0 .4rem}
+p{margin:.7rem 0}
+.eyebrow{font:500 .74rem/1 "IBM Plex Mono",monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.lede{font-size:1.12rem;color:var(--muted);margin:0 0 1.2rem}
+.verdict{background:var(--accent-soft);border-left:3px solid var(--accent);padding:1rem 1.2rem;border-radius:0 6px 6px 0;margin:1.4rem 0}
+.verdict p{margin:.35rem 0}
+table{width:100%;border-collapse:collapse;font-size:.88rem;margin:1rem 0}
+.tablewrap{overflow-x:auto}
+th{text-align:left;font:500 .72rem/1.3 "IBM Plex Mono",monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:.5rem .7rem;border-bottom:2px solid var(--line)}
+td{padding:.55rem .7rem;border-bottom:1px solid var(--line);vertical-align:top}
+.yes{color:var(--good);font-weight:600}.no{color:var(--bad);font-weight:600}
+code,pre{font-family:"IBM Plex Mono",monospace;font-size:.85em;background:var(--code-bg);border-radius:4px}
+code{padding:.1em .35em}
+pre{padding:1rem;overflow-x:auto;line-height:1.5}
+pre code{background:none;padding:0}
+ul{padding-left:1.2rem}li{margin:.35rem 0}
+.tier{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:.8rem 1rem;margin:.6rem 0}
+.tier b{font-family:"Bricolage Grotesque",sans-serif}
+.tier span{display:block;color:var(--muted);font-size:.88rem;margin-top:.15rem}
+.wk{display:flex;gap:1rem;margin:1rem 0;align-items:baseline}
+.wk .n{font:500 .8rem/1 "IBM Plex Mono",monospace;color:var(--accent);white-space:nowrap;min-width:5.2rem}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0}
+@media (max-width:640px){.split{grid-template-columns:1fr}}
+.col{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:1rem 1.2rem}
+.col h4{margin:0 0 .5rem;font-family:"Bricolage Grotesque",sans-serif;font-size:.95rem}
+.col ul{margin:.3rem 0;padding-left:1.1rem;font-size:.9rem}
+a{color:var(--accent)}
+.foot{margin-top:3rem;padding-top:1.2rem;border-top:1px solid var(--line);color:var(--muted);font-size:.82rem}
+</style>
+<main>
+<p class="eyebrow">Open-Source + Service Launch Plan · Aug 2026</p>
+<h1>Profile Cloud Launch Plan</h1>
+<p class="lede">How to ship the agent profile cloud as an open-source project and a hosted service: license, open-core boundary, trust roadmap, pricing, and an 8-week launch sequence. Companion to the architecture report.</p>
+
+<div class="verdict">
+<p><b>Strategy in one paragraph:</b> Apache-2.0 everything user-facing, with client-side zero-knowledge encryption fully open — trust is the product. Self-hosting is a one-click "Deploy to Cloudflare" button into the user's own free-tier account, which is your top-of-funnel; the paid cloud sells convenience, teams, and the signed skill registry. Claim the open "profile" naming space (AgentVault and SkillSync are taken), list on all four MCP registries plus Anthropic's Connectors Directory, and launch with Show HN as the main event.</p>
+</div>
+
+<h2>1 · Positioning</h2>
+<p>Tagline pattern that works in this space (Supermemory: "your memories in every LLM, one command"):</p>
+<p><b>"Your agent's identity, everywhere. One profile — skills, credentials, memory — synced to every agent tool."</b></p>
+<ul>
+<li><b>Differentiator vs memory-only rivals</b> (Supermemory, OpenMemory): the bundle. Skills + encrypted credentials + memory = a portable agent identity, not a memory add-on.</li>
+<li><b>Differentiator vs secret managers</b> (Infisical, Doppler): agent-native grants and one endpoint that also carries skills and memory.</li>
+<li><b>Differentiator vs Executor</b> (UsefulSoftwareCo/executor, MIT, 3.5k★ — the closest competitor): Executor is an <em>integration gateway</em> — what your agents can call (MCP/OpenAPI tools + credentials + policies). We are the <em>agent identity</em> — what your agents know and are: portable SKILL.md skills with format translation, cross-tool memory, and zero-knowledge (not merely centralized) credentials. Position as complementary ("run your tools through Executor, carry your profile with us") and consider an Executor adapter rather than a head-on fight over the credential/policy overlap.</li>
+<li><b>Differentiator vs everyone</b>: open source + self-host on your own Cloudflare account for free; zero-knowledge server.</li>
+<li><b>Naming:</b> "vault", "memory", and "skills" namespaces are crowded (Infisical agent-vault; SkillSync is YC W26 and adjacent). The <em>profile</em> framing is open — pick a name there and register domain, GitHub org, and npm scope on day one.</li>
+</ul>
+
+<h2>2 · License &amp; open-core boundary</h2>
+<p><b>License: Apache-2.0</b> across server, SDKs, CLI, and crypto. Every direct comparable in agent memory (Mem0, Zep, Letta, LiveKit, Supabase-style) chose permissive; AGPL/fair-code friction kills integrations in an ecosystem where agent-tool vendors must embed your client. The 2024–25 relicensing disasters (Redis→Valkey, HashiCorp→OpenTofu) argue for picking the durable license on day one; FSL is the fallback only if cloud strip-mining ever becomes real. Use <b>DCO, not CLA</b> — the asymmetric CLA is what made those relicensings possible and contributors know it.</p>
+
+<div class="split">
+<div class="col"><h4>Open (Apache-2.0)</h4><ul>
+<li>MCP server + REST API</li>
+<li>All client-side E2E encryption — the trust core</li>
+<li>CLI + SDKs, skill format &amp; translators</li>
+<li>Single-user self-host: Deploy-to-Cloudflare button (DO + D1 + R2, free-tier-friendly)</li>
+<li>Basic OAuth (GitHub/Google)</li>
+</ul></div>
+<div class="col"><h4>Paid cloud / EE</h4><ul>
+<li>Managed hosting, backups, multi-device sync at scale</li>
+<li>Team/org profiles &amp; sharing, RBAC</li>
+<li>SSO/SAML/SCIM, audit log export</li>
+<li>Hosted skill registry with signing + injection scanning</li>
+<li>Support, compliance reports</li>
+</ul></div>
+</div>
+
+<p><b>Pricing anchor</b> (consistent with Mem0 $19–249, Letta $20, Infisical $9/user): Free → <b>~$12/mo individual</b> → <b>~$29/user/mo team</b> → enterprise. Self-hosters convert when they want teams or no-ops; expect monetization mostly from users who never self-host.</p>
+
+<h2>3 · Trust roadmap</h2>
+<p>For a product storing credentials, security <em>is</em> the marketing. The Bitwarden/Vaultwarden pattern: crypto is client-side, fully open, independently audited — the server is zero-knowledge, so even your paid cloud never sees plaintext. That converts the biggest objection into the pitch.</p>
+<ul>
+<li><b>Day one:</b> zero-knowledge architecture doc, security.txt + responsible-disclosure policy, GitHub Security Advisories, npm provenance (<code>--provenance</code> via GitHub Actions OIDC) on every package.</li>
+<li><b>Before credential-sync GA:</b> independent crypto audit (Cure53 / Trail of Bits class); publish it in full.</li>
+<li><b>Registry launch:</b> Sigstore-signed skills with publisher identity bound to CI OIDC, verified on install; automated prompt-injection scan before activation.</li>
+<li><b>First enterprise interest:</b> SOC 2 Type I (Probo or similar to bootstrap), Type II 6–12 months later.</li>
+</ul>
+
+<h2>4 · Distribution</h2>
+<div class="tablewrap">
+<table>
+<tr><th>Channel</th><th>What to do</th></tr>
+<tr><td><b>Anthropic Connectors Directory</b></td><td>Highest value — in-product Claude discovery. Start submission in week 1 (longest review): Streamable HTTP required, docs URL, privacy policy, icon, test credentials.</td></tr>
+<tr><td><b>MCP registries</b></td><td>Smithery (CLI publish, supports remote servers), Glama (~37K servers, manual review), mcp.so, PulseMCP; PR to punkpeye/awesome-mcp-servers.</td></tr>
+<tr><td><b>Agent Skills ecosystem</b></td><td>Ship a companion skill; list on skills.sh, agenticskills.io, VoltAgent/awesome-agent-skills. Quality bar is low there — a polished one stands out.</td></tr>
+<tr><td><b>Show HN</b></td><td>Main launch event. Tue–Thu ~8:30am ET; need ~30–50 upvotes in hour one; founder in comments all day; ≈1.4 stars per upvote.</td></tr>
+<tr><td><b>Creators &amp; press echo</b></td><td>Seed 5–10 Claude Code/Cursor YouTubers with early access + reproducible 60s demo; Product Hunt and TLDR/Bytes as week-after echo; "how we built it on Workers/DOs" post (Cloudflare often amplifies).</td></tr>
+</table>
+</div>
+<p><b>The money shot</b> (README GIF and demo video, &lt;90s): the same profile appearing live in two different agent tools — teach Claude Code a fact, watch Cursor recall it; install a skill once, see it in both.</p>
+
+<h2>5 · Repo &amp; community bar</h2>
+<ul>
+<li>README: one-line value prop, animated demo GIF above the fold, one-command install, client-compatibility matrix (Claude Code / Cursor / Codex badges), architecture diagram.</li>
+<li>Docs on Mintlify (the AI-devtool default): per-client quickstarts, copy-paste one-liner, <code>llms.txt</code>.</li>
+<li>GitHub Discussions (searchable Q&amp;A) + Discord (live energy); 10–15 good-first-issues labeled at launch; CONTRIBUTING.md; fast first-PR reviews.</li>
+<li>Keep the MCP tool surface small (~5–8 tools) — oversized tool lists exhaust agent context windows and hurt reviews.</li>
+</ul>
+
+<h2>6 · 8-week launch sequence</h2>
+<div class="wk"><span class="n">Wk 1–2</span><p><b>Foundations.</b> Name + domain + GitHub org + npm scope. Phase-1 build (MCP server, DO profile, skills + memory). Apache-2.0, DCO, security.txt. README with GIF, Mintlify docs. <em>Start Connectors Directory submission now.</em></p></div>
+<div class="wk"><span class="n">Wk 3</span><p><b>Quiet listing.</b> Publish to Smithery/Glama/mcp.so/PulseMCP; awesome-list PRs; companion skill on the skill directories. Deploy-to-Cloudflare button working end-to-end. Open Discussions, label good-first-issues.</p></div>
+<div class="wk"><span class="n">Wk 4</span><p><b>Private beta.</b> 20–50 users from MCP/Claude Code communities. Instrument the key metric: a profile connected to a <em>second</em> client. Fix streaming/auth/timeout edges (avoid buffering through Cloudflare — 100s ceiling).</p></div>
+<div class="wk"><span class="n">Wk 5</span><p><b>Seeding.</b> Creator early access + demo kit. Launch blog post: "Why your agent's identity shouldn't live in one tool." Credential sync ships behind a beta flag with the zero-knowledge doc.</p></div>
+<div class="wk"><span class="n">Wk 6</span><p><b>Launch.</b> Show HN + X demo thread + public Discord, same day. Founder in comments. GitHub trending via the star spike (topics: <code>mcp</code>, <code>claude-code</code>, <code>ai-agents</code>).</p></div>
+<div class="wk"><span class="n">Wk 7</span><p><b>Echo.</b> Product Hunt; TLDR/Bytes/daily.dev pitches; creator videos drop; Cloudflare technical build post.</p></div>
+<div class="wk"><span class="n">Wk 8</span><p><b>Retention.</b> Connectors listing live; ship the top HN-requested feature publicly; first community call; changelog + early metrics; SEO comparison pages (vs Supermemory, OpenMemory, SkillSync).</p></div>
+
+<h2>7 · Success metrics &amp; risks</h2>
+<ul>
+<li><b>Healthy month one</b> for a front-page MCP-era launch: 1–3K stars, steady registry installs, Discord growth. North-star: <b>% of profiles synced to ≥2 clients</b> — that's the product working.</li>
+<li><b>Risks:</b> Executor (3.5k★, MIT, active) expanding from tool gateway into memory/portable skills — it has the head start on stars and multi-platform deploys (mitigate: ship the memory + zero-knowledge differentiators first, position as complementary, watch its roadmap); Cloudflare's own Agent Memory beta expanding into this space (mitigate: be the open, cross-cloud-portable option); credential-storage breach headline risk (mitigate: zero-knowledge + audit before GA); skill prompt-injection incident in the registry (mitigate: signing + scanning + quarantine from day one); launching before the demo GIF and one-command install exist (the most common fatal mistake — don't).</li>
+</ul>
+
+<p class="foot">Research compiled Aug 31, 2026: licensing/business-model comps (Supabase, Infisical, Mem0, Zep, Letta, PostHog, Cal.com, Sentry/FSL, Redis &amp; HashiCorp case studies, Bitwarden/Vaultwarden), and launch-channel research (Smithery, Glama, mcp.so, PulseMCP, Anthropic Connectors Directory, agentskills.io, Show HN/Product Hunt mechanics). Planning only — no code written. See the companion architecture report for the technical design.</p>
+</main>

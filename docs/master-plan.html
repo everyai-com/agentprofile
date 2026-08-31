@@ -1,0 +1,200 @@
+<title>Profile Cloud Master Plan</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#FBFAF8; --surface:#F2F0EC; --ink:#22252B; --muted:#5D6470;
+  --line:#E0DDD6; --accent:#C4571A; --accent-soft:#F7E8DC;
+  --good:#2B7A5B; --bad:#A63A3A; --code-bg:#EEECE7;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#191B1F; --surface:#22252B; --ink:#EAE7E1; --muted:#9AA0AB;
+    --line:#33373F; --accent:#E8834A; --accent-soft:#3A2A1E;
+    --good:#5BBF97; --bad:#E08585; --code-bg:#24272E;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#191B1F; --surface:#22252B; --ink:#EAE7E1; --muted:#9AA0AB;
+  --line:#33373F; --accent:#E8834A; --accent-soft:#3A2A1E;
+  --good:#5BBF97; --bad:#E08585; --code-bg:#24272E;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.65 "IBM Plex Sans",system-ui,sans-serif;margin:0;padding:0 1.25rem}
+main{max-width:48rem;margin:0 auto;padding:3.5rem 0 5rem}
+h1,h2,h3,h4{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;line-height:1.15;text-wrap:balance}
+h1{font-size:2.5rem;font-weight:700;margin:.4rem 0 .6rem}
+h2{font-size:1.5rem;font-weight:700;margin:3rem 0 .8rem;padding-top:1.6rem;border-top:1px solid var(--line)}
+h3{font-size:1.1rem;font-weight:600;margin:1.8rem 0 .4rem}
+p{margin:.7rem 0}
+.eyebrow{font:500 .74rem/1 "IBM Plex Mono",monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.lede{font-size:1.12rem;color:var(--muted);margin:0 0 1.2rem}
+.verdict{background:var(--accent-soft);border-left:3px solid var(--accent);padding:1rem 1.2rem;border-radius:0 6px 6px 0;margin:1.4rem 0}
+table{width:100%;border-collapse:collapse;font-size:.87rem;margin:1rem 0}
+.tablewrap{overflow-x:auto}
+th{text-align:left;font:500 .72rem/1.3 "IBM Plex Mono",monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:.5rem .7rem;border-bottom:2px solid var(--line)}
+td{padding:.55rem .7rem;border-bottom:1px solid var(--line);vertical-align:top}
+td:first-child{font-weight:600;white-space:nowrap}
+.yes{color:var(--good);font-weight:600}.no{color:var(--muted)}
+code,pre{font-family:"IBM Plex Mono",monospace;font-size:.84em;background:var(--code-bg);border-radius:4px}
+code{padding:.1em .35em}
+pre{padding:1rem;overflow-x:auto;line-height:1.5;margin:.8rem 0}
+pre code{background:none;padding:0}
+ul,ol{padding-left:1.2rem}li{margin:.35rem 0}
+.tier{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:.8rem 1rem;margin:.6rem 0}
+.tier b{font-family:"Bricolage Grotesque",sans-serif}
+.tier span{display:block;color:var(--muted);font-size:.88rem;margin-top:.15rem}
+.step{display:flex;gap:1rem;margin:.9rem 0;align-items:baseline}
+.step .n{font:500 .8rem/1 "IBM Plex Mono",monospace;color:var(--accent);white-space:nowrap;min-width:5.4rem}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0}
+@media (max-width:640px){.split{grid-template-columns:1fr}}
+.col{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:1rem 1.2rem}
+.col h4{margin:0 0 .5rem;font-size:.95rem}
+.col ul{margin:.3rem 0;padding-left:1.1rem;font-size:.9rem}
+.toc{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:1rem 1.4rem;font-size:.9rem;columns:2;column-gap:2rem}
+@media (max-width:640px){.toc{columns:1}}
+.toc a{color:var(--ink);text-decoration:none}
+.toc a:hover{color:var(--accent)}
+.toc ol{margin:0;padding-left:1.1rem}
+a{color:var(--accent)}
+.flow{font-family:"IBM Plex Mono",monospace;font-size:.82rem;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:1rem;overflow-x:auto;line-height:1.7;margin:1rem 0;white-space:pre}
+.foot{margin-top:3rem;padding-top:1.2rem;border-top:1px solid var(--line);color:var(--muted);font-size:.82rem}
+.note{color:var(--muted);font-size:.88rem}
+</style>
+<main>
+<p class="eyebrow">Master Plan · v1 · Aug 31, 2026</p>
+<h1>Profile Cloud Master Plan</h1>
+<p class="lede">The complete plan — market, product, Cloudflare architecture, open-source strategy, and launch — for a service that gives every AI agent one synced identity: skills, encrypted credentials, and memory.</p>
+
+<nav class="toc"><ol>
+<li><a href="#s1">Vision &amp; one-liner</a></li>
+<li><a href="#s2">Market &amp; competition</a></li>
+<li><a href="#s3">Product &amp; user experience</a></li>
+<li><a href="#s4">Architecture on Cloudflare</a></li>
+<li><a href="#s5">Security &amp; trust</a></li>
+<li><a href="#s6">Open source &amp; business model</a></li>
+<li><a href="#s7">Launch (8 weeks)</a></li>
+<li><a href="#s8">Engineering roadmap</a></li>
+<li><a href="#s9">Metrics &amp; risks</a></li>
+<li><a href="#s10">Do-this-week checklist</a></li>
+</ol></nav>
+
+<h2 id="s1">1 · Vision &amp; one-liner</h2>
+<div class="verdict"><p><b>"Your agent's identity, everywhere."</b> One profile — skills, credentials, memory — synced to every agent tool through a single MCP URL. Open source, zero-knowledge, self-hostable on your own Cloudflare account in one click; the hosted cloud sells convenience, teams, and a signed skill registry.</p></div>
+<p>The bet: people now use several agent tools (Claude Code, Cursor, Codex, custom agents), and each one starts from zero — its own skills, its own pasted API keys, its own amnesia. Every piece of the fix exists separately; nobody bundles them. The bundle <em>is</em> the product.</p>
+
+<h2 id="s2">2 · Market &amp; competition</h2>
+<div class="tablewrap"><table>
+<tr><th>Player</th><th>Skills</th><th>Secrets</th><th>Memory</th><th>Take</th></tr>
+<tr><td>Executor <span class="note">(3.5k★, MIT)</span></td><td class="no">tool discovery only</td><td class="yes">✓ centralized</td><td class="no">—</td><td>Closest competitor; integration gateway (MCP/OpenAPI tools + policies). No memory, no user-authored skills, operator can read secrets. Position as complementary.</td></tr>
+<tr><td>Mem0 / OpenMemory</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td>Most mature cross-tool memory; becomes a <em>backend</em> via our provider adapters.</td></tr>
+<tr><td>Supermemory</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td>Best onboarding in memory space; also an adapter target.</td></tr>
+<tr><td>Infisical / Doppler / 1Password</td><td class="no">—</td><td class="yes">✓</td><td class="no">—</td><td>Secret managers with agent MCP bolt-ons; not agent-native grants, no skills/memory.</td></tr>
+<tr><td>Skilldex / Agent Plugins 1.0</td><td class="yes">✓</td><td class="no">—</td><td class="no">—</td><td>Skill distribution formats/registries; no user profile, no sync service.</td></tr>
+<tr><td>Cloudflare Agent Memory</td><td class="no">—</td><td class="no">—</td><td class="yes">beta</td><td>Platform play, memory-only, private beta — watch closely.</td></tr>
+</table></div>
+<p><b>Standards to ride:</b> MCP (transport), Agent Skills / SKILL.md (~40 compatible tools), Agent Plugins 1.0, AGENTS.md. <b>Naming:</b> "vault"/"memory"/"skills" namespaces are crowded (AgentVault, SkillSync taken); the <b>"profile"</b> space is open — claim name, domain, GitHub org, npm scope immediately.</p>
+
+<h2 id="s3">3 · Product &amp; user experience</h2>
+<h3>Core loop</h3>
+<div class="step"><span class="n">Connect</span><p>Each agent tool adds one MCP URL, OAuths once, and becomes a <b>grant</b> — its own identity with its own scopes (skills tags, memory scopes, named credentials; secrets default-deny).</p></div>
+<div class="step"><span class="n">Skills</span><p>Add a skill once (upload, registry, or git); every tool receives it <em>in its native format</em> — SKILL.md for Claude Code, rules for Cursor, AGENTS.md/plugin bundles for others — translated at fetch time, versioned, live-pushed.</p></div>
+<div class="step"><span class="n">Memory</span><p>Agents call <code>remember</code>/<code>recall</code>; every tool reads and writes the same brain, with provenance ("learned in Claude Code, Aug 31") and per-tool scope filters (work tools never see personal memories).</p></div>
+<div class="step"><span class="n">Secrets</span><p>Credentials encrypted <em>on the user's device</em> before upload; delivered just-in-time to granted clients; every read audited; revoke a tool and access dies instantly.</p></div>
+<h3>Insanely-easy onboarding (&lt; 60s, no signup)</h3>
+<ul>
+<li><b>Path A — the agent installs it:</b> landing-page CTA is a copy-paste <em>prompt</em>; the user's own agent creates the profile, writes MCP configs for every detected client, verifies, and teaches a first memory.</li>
+<li><b>Path B — one command:</b> <code>npx profilecloud</code> mints an <em>anonymous instant profile</em> (token doubles as claim key), auto-wires detected clients, prints the test: "now ask Cursor what you just told Claude Code." Claim with a login later; secrets unlock only after claiming.</li>
+<li><b>Path C — web-first:</b> two-step connect page per client, exact command pre-filled, live checkmark when the first call lands; connection options encoded in the URL (<code>?scopes=dev&amp;approval=browser</code>).</li>
+<li>Restart-friction killers (offer to restart the client; "waiting for first call…" indicator), <code>pc doctor</code> that prints the fix for every failure, idempotent self-host <code>deploy:setup</code> that prints the one remaining manual step.</li>
+</ul>
+<h3>MCP surface (≤ 9 tools, byte-budgeted)</h3>
+<pre><code>get_context() · list_skills() · get_skill(slug, format) · remember(fact, scope)
+recall(query, scope) · forget(id) · list_credentials() · get_credential(name) · sync_status()</code></pre>
+<p class="note">Description byte-sizes pinned in tests (every byte is paid on every client turn — lesson from Executor). Long-form guidance behind a docs tool, never in always-loaded descriptions. Management (installs, grants, publishing) lives in CLI/dashboard, not MCP.</p>
+
+<h2 id="s4">4 · Architecture on Cloudflare</h2>
+<div class="flow">agent tool ──Streamable HTTP──▶ edge Worker (workers-oauth-provider)
+                                   │ idFromName(userId)
+                                   ▼
+                            ProfileDO (McpAgent)
+                            per-profile SQLite: grants·facts·skills·secrets·audit·cursors
+                              ├ R2        skill bundles (KV read-through cache)
+                              ├ D1        accounts + skill registry
+                              ├ Vectorize semantic recall (ns per user)
+                              ├ Queues    embed / render / scan jobs
+                              ├ Workflows skill publish: validate→scan→render→sign
+                              └ WebSocket live push → dashboard, CLI, other clients</div>
+<div class="tablewrap"><table>
+<tr><th>Product</th><th>Role</th></tr>
+<tr><td>Workers + Agents SDK</td><td>All compute; <code>McpAgent</code> on Durable Objects is the MCP server (Streamable HTTP only; stream everything, 100s ceiling)</td></tr>
+<tr><td>Durable Objects</td><td><code>ProfileDO</code> per user — source of truth; instant grant revocation; no cache-TTL lag</td></tr>
+<tr><td>D1 / R2 / KV</td><td>Global registry &amp; accounts / content-addressed skill bundles &amp; renders / hot cache</td></tr>
+<tr><td>Vectorize + Workers AI</td><td><code>bge-m3</code> embeddings, semantic <code>recall</code>, skill prompt-injection scanning, nightly memory consolidation</td></tr>
+<tr><td>Queues / Workflows / Cron</td><td>Async fan-out / durable multi-step pipelines / consolidation &amp; rotation schedules</td></tr>
+<tr><td>OAuth Provider · Turnstile · WAF · Access</td><td>MCP-client auth flow · signup/publish abuse · rate limits · internal admin</td></tr>
+<tr><td>Analytics Engine · Tail Workers</td><td>PII-free product metrics · log redaction of secret fields before any sink</td></tr>
+</table></div>
+<h3>Memory is a provider interface</h3>
+<p><code>MemoryProvider</code> adapters: <b>builtin</b> (DO SQLite + Vectorize, default), <b>Mem0</b>, <b>Supermemory</b>, <b>Zep</b> — users keep the memory service they already use; our grant/audit layer wraps every backend (external providers have no per-client access control — added value either way). Optional mirror mode writes to both so switching providers is lossless. Provider API keys are stored as ordinary E2E-encrypted credentials.</p>
+<h3>Two deployments, one codebase</h3>
+<div class="split">
+<div class="col"><h4>Cloud (multi-tenant)</h4><ul><li>Our account; isolation at the DO boundary + per-tenant Vectorize namespaces/R2 prefixes</li><li>Stripe billing; plan flags in D1, cached in DO</li></ul></div>
+<div class="col"><h4>Self-host (single-tenant)</h4><ul><li>Deploy-to-Cloudflare button auto-provisions DO/D1/R2/Vectorize/Queues in the user's account</li><li><code>MODE=selfhost</code>: public registry read-only, no Stripe; free tier covers personal use</li></ul></div>
+</div>
+
+<h2 id="s5">5 · Security &amp; trust</h2>
+<ul>
+<li><b>Zero-knowledge secrets:</b> master key derived client-side (Argon2id or keychain; recovery code), never leaves the device. Per-secret DEKs (AES-256-GCM) wrapped by the master key; server stores only ciphertext + wrapped DEK, plus a platform-KEK outer envelope for defense in depth. Team sharing later = X25519 DEK-wrapping per member (Bitwarden org model). <em>This is the wedge vs Executor/Infisical: their operators can read your secrets; we cannot.</em></li>
+<li><b>Grants + audit:</b> per-client scopes and filters enforced in the DO before any data access; every allow/deny logged; approval-gated actions pause and return a browser approval URL (long-poll) — human approval is the default, not model self-approval.</li>
+<li><b>Skill supply chain:</b> publish pipeline = validate → Workers AI injection scan → render formats → Sigstore-sign (CI OIDC publisher identity) → live; quarantine flags propagate to installs.</li>
+<li><b>Trust roadmap:</b> day one — zero-knowledge architecture doc, security.txt, disclosure policy, npm provenance on all packages; pre-GA of secrets — independent crypto audit (Cure53/Trail of Bits class), published in full; enterprise interest — SOC 2 Type I then II.</li>
+</ul>
+
+<h2 id="s6">6 · Open source &amp; business model</h2>
+<p><b>License: Apache-2.0 everywhere user-facing, decided on day one. DCO, not CLA.</b> Every comparable in agent memory chose permissive; AGPL friction kills embedding; the Redis→Valkey and HashiCorp→OpenTofu exoduses prove relicensing after adoption is catastrophic. FSL is the break-glass fallback only.</p>
+<div class="split">
+<div class="col"><h4>Open (Apache-2.0)</h4><ul><li>MCP server, REST API, dashboard</li><li>All client-side E2E crypto — the trust core</li><li>CLI, SDKs, skill format + translators, memory adapters</li><li>Self-host via deploy button (free-tier friendly)</li></ul></div>
+<div class="col"><h4>Paid cloud / EE</h4><ul><li>Managed hosting, backups, scale sync</li><li>Team/org profiles, sharing, RBAC</li><li>SSO/SAML/SCIM, audit export</li><li>Hosted signed skill registry; support, compliance</li></ul></div>
+</div>
+<p><b>Pricing:</b> Free → ~$12/mo individual → ~$29/user/mo team → enterprise. Self-host is top-of-funnel; teams convert for SSO/RBAC/no-ops. COGS ≈ pennies per active user (DO requests dominate) — margin is a non-issue.</p>
+
+<h2 id="s7">7 · Launch (8 weeks)</h2>
+<div class="step"><span class="n">Wk 1–2</span><p><b>Foundations.</b> Name/domain/org/npm claimed. P1 build. Apache-2.0 + DCO + security.txt. README with demo GIF, Mintlify docs, llms.txt. <em>Start Anthropic Connectors Directory submission now</em> (longest review; needs Streamable HTTP, privacy policy, docs, test account).</p></div>
+<div class="step"><span class="n">Wk 3</span><p><b>Quiet listing.</b> Smithery (CLI publish), Glama, mcp.so, PulseMCP; PRs to awesome-mcp-servers + awesome-agent-skills; companion skill on skills.sh/agenticskills.io. Deploy button works end to end. Discussions open, 10–15 good-first-issues (memory adapters are ideal).</p></div>
+<div class="step"><span class="n">Wk 4</span><p><b>Private beta.</b> 20–50 users from MCP/Claude Code communities; instrument second-client conversion; fix streaming/auth edges; collect quotes.</p></div>
+<div class="step"><span class="n">Wk 5</span><p><b>Seeding.</b> Early access + reproducible 60s demo to 5–10 Claude Code/Cursor creators. Launch post: "Why your agent's identity shouldn't live in one tool." Secrets ship behind a beta flag with the zero-knowledge doc.</p></div>
+<div class="step"><span class="n">Wk 6</span><p><b>LAUNCH.</b> Show HN Tue–Thu ~8:30am ET (need ~30–50 upvotes in hour one; founder in comments all day; ≈1.4 stars/upvote). Simultaneous X demo thread; Discord opens; GitHub trending via the spike (<code>mcp</code>, <code>claude-code</code>, <code>ai-agents</code> topics).</p></div>
+<div class="step"><span class="n">Wk 7</span><p><b>Echo.</b> Product Hunt; TLDR/Bytes/daily.dev; creator videos; "how we built it on Workers/Durable Objects" post (Cloudflare often amplifies).</p></div>
+<div class="step"><span class="n">Wk 8</span><p><b>Retention.</b> Connectors listing live; ship top HN request publicly; first community call; SEO comparison pages (vs Supermemory, OpenMemory, Executor, SkillSync).</p></div>
+<p><b>Demo money shot</b> (README GIF + &lt;90s video): teach Claude Code a fact → Cursor recalls it; install a skill once → it appears in both.</p>
+
+<h2 id="s8">8 · Engineering roadmap</h2>
+<div class="step"><span class="n">P1 · wk 1–2</span><p><b>Skeleton that syncs.</b> ProfileDO + McpAgent; <code>get_context / list_skills / get_skill / remember / recall</code> (SQLite LIKE); bearer tokens; R2 store; <code>npx profilecloud</code> instant-profile CLI with client auto-detection. Exit: the money-shot demo works.</p></div>
+<div class="step"><span class="n">P2 · wk 3–4</span><p><b>Real auth + memory.</b> workers-oauth-provider consent flow; grants + audit; Queues → Workers AI embeddings → Vectorize recall; WebSocket push; dashboard v1; <code>MemoryProvider</code> interface; agent-setup prompt on the landing page.</p></div>
+<div class="step"><span class="n">P3 · wk 4–5</span><p><b>Secrets.</b> <code>packages/crypto</code> client E2E; <code>get_credential</code> + JIT injection; approval-URL flow; audit views; KEK envelope. Beta-flagged until external audit.</p></div>
+<div class="step"><span class="n">P4 · wk 5–6</span><p><b>Self-host + registry + adapters.</b> Deploy button + <code>MODE=selfhost</code> + idempotent <code>deploy:setup</code>; skill publish Workflow (validate→scan→render→sign); public registry; Cursor/AGENTS.md translators; Mem0 + Supermemory adapters.</p></div>
+<div class="step"><span class="n">P5 · wk 6–8</span><p><b>Hardening.</b> WAF/rate limits/Turnstile; Analytics Engine dashboards; Tail Worker redaction; Connectors requirements; Stripe + plan gating; DO hot-path load tests; <code>pc doctor</code>.</p></div>
+<pre><code>profile-cloud/
+├── apps/{worker, dashboard, cli}          # MCP+REST+OAuth · React+useAgent() · `pc`
+├── packages/{crypto, sdk, skill-format, memory-adapters, shared}
+├── deploy/                                # Deploy-to-Cloudflare templates
+└── docs/                                  # Mintlify, per-client quickstarts, llms.txt</code></pre>
+
+<h2 id="s9">9 · Metrics &amp; risks</h2>
+<ul>
+<li><b>North star: % of profiles synced to ≥2 clients.</b> Supporting: time-to-first-sync, registry installs, weekly active profiles, Discord/Discussions activity. Healthy month one for a front-page MCP launch: 1–3K stars.</li>
+<li><b>Risks &amp; mitigations:</b> Executor expands into memory/skills (ship memory + zero-knowledge first; stay complementary) · Cloudflare Agent Memory grows up (be the open, portable, cross-cloud option) · credential-breach headline (zero-knowledge + audit before GA; never log secret fields — lint-enforced) · registry prompt-injection incident (signing + scanning + quarantine from day one) · launching without the demo GIF/one-command install (the classic fatal mistake — blocked in the checklist below).</li>
+</ul>
+
+<h2 id="s10">10 · Do-this-week checklist</h2>
+<ol>
+<li>Pick the name in the "profile" space; register domain, GitHub org, npm scope.</li>
+<li>Scaffold the monorepo (Apache-2.0, DCO, security.txt) and P1: ProfileDO + McpAgent + 5 tools.</li>
+<li>Build <code>npx &lt;name&gt;</code> instant-profile flow with client auto-detection.</li>
+<li>Record the money-shot GIF the moment the demo works.</li>
+<li>Draft the Connectors Directory submission (privacy policy, docs skeleton).</li>
+<li>Write the agent-setup prompt and test it in Claude Code and Cursor.</li>
+</ol>
+
+<p class="foot">Consolidates: landscape research (Aug 31, 2026), OSS/business-model research, launch-channel research, and a code-level deep dive of UsefulSoftwareCo/executor. Companion deep-dives: architecture report · launch plan · technical spec (same gallery). Verify Cloudflare limits/APIs against live docs at implementation time. Planning only — no code written yet.</p>
+</main>

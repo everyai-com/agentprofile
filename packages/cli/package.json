@@ -1,0 +1,18 @@
+{
+  "name": "agentprofile",
+  "version": "0.1.0",
+  "description": "Your agent's identity, everywhere. One profile — skills, credentials, memory — synced to every agent tool. Run `npx agentprofile` to connect all your tools in under a minute.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "agentprofile": "bin/agentprofile.mjs"
+  },
+  "files": [
+    "bin",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": ["mcp", "claude-code", "cursor", "ai-agents", "agent-memory", "skills"]
+}
