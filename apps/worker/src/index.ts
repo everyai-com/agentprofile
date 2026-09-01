@@ -218,6 +218,43 @@ export default {
         }
       }
 
+      // Zero-knowledge credentials (owner token). The server only ever receives
+      // and returns ciphertext + wrapped keys — never plaintext or the master key.
+      if (path === "/credentials") {
+        const token = tokenFromRequest(request);
+        if (!token) return unauthorized();
+        const stub = env.PROFILE.get(env.PROFILE.idFromName(token.profileId));
+        if (request.method === "GET") {
+          const list = await stub.listCredentials(token.secret);
+          return list ? Response.json({ credentials: list }) : unauthorized();
+        }
+        if (request.method === "POST") {
+          const b = (await request.json()) as {
+            name?: string;
+            ciphertext?: string;
+            wrapped_dek?: string;
+            algo?: string;
+          };
+          if (!b.name || !b.ciphertext || !b.wrapped_dek) return badRequest("name, ciphertext, wrapped_dek required");
+          const okd = await stub.putCredential(token.secret, b.name, b.ciphertext, b.wrapped_dek, b.algo || "A256GCM");
+          return okd ? Response.json({ stored: b.name }) : unauthorized();
+        }
+      }
+      if (path.startsWith("/credentials/")) {
+        const token = tokenFromRequest(request);
+        if (!token) return unauthorized();
+        const name = decodeURIComponent(path.slice("/credentials/".length));
+        const stub = env.PROFILE.get(env.PROFILE.idFromName(token.profileId));
+        if (request.method === "GET") {
+          const blob = await stub.getCredentialBlob(token.secret, name);
+          return blob ? Response.json(blob) : new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: JSON_HEADERS });
+        }
+        if (request.method === "DELETE") {
+          const done = await stub.deleteCredential(token.secret, name);
+          return Response.json({ deleted: done ? name : null });
+        }
+      }
+
       // Memory provider config: choose builtin (default) or an external backend
       // (Mem0 / Supermemory) the user already uses. Secret-gated.
       if (path === "/memory-config") {

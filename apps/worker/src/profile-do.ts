@@ -70,6 +70,17 @@ export class ProfileDO extends DurableObject<Env> {
         allowed INTEGER NOT NULL,
         detail TEXT
       );
+      -- Zero-knowledge credentials: the server stores ONLY ciphertext and the
+      -- wrapped data key. It never receives, holds, or can derive the master key
+      -- or the plaintext. Encryption/decryption happen client-side.
+      CREATE TABLE IF NOT EXISTS secrets (
+        name TEXT PRIMARY KEY,
+        ciphertext TEXT NOT NULL,
+        wrapped_dek TEXT NOT NULL,
+        algo TEXT NOT NULL,
+        created INTEGER NOT NULL,
+        updated INTEGER NOT NULL
+      );
     `);
     // Add the embedding column if an older profile predates semantic recall.
     const cols = this.rows<{ name: string }>(`PRAGMA table_info(facts)`);
@@ -176,6 +187,8 @@ export class ProfileDO extends DurableObject<Env> {
     remember: "memory:write",
     recall: "memory:read",
     forget: "memory:write",
+    list_credentials: "secrets:read",
+    get_credential: "secrets:read",
   };
   private static readonly DEFAULT_SCOPES = ["skills:read", "memory:read", "memory:write"];
 
@@ -313,6 +326,10 @@ export class ProfileDO extends DurableObject<Env> {
           return { ok: true, text: await this.recallRouted(req(args.query, "query"), str(args.scope), num(args.limit) ?? 8) };
         case "forget":
           return { ok: true, text: await this.forgetRouted(req(args.id, "id")) };
+        case "list_credentials":
+          return { ok: true, text: this.listCredentialsText() };
+        case "get_credential":
+          return { ok: true, text: this.getCredentialText(req(args.name, "name")) };
         default:
           return { ok: false, status: 400, error: `unknown tool: ${name}` };
       }
@@ -369,6 +386,82 @@ export class ProfileDO extends DurableObject<Env> {
     if (!body) throw new Error(`skill ${slug} has no content`);
     // Phase 1 translation is a light reframing; real translators land in P4.
     return renderSkill(slug, row.version, body, format);
+  }
+
+  // ---- Zero-knowledge credentials ----------------------------------------
+  // Every value here is opaque ciphertext. The DO cannot decrypt anything.
+
+  // MCP tool: metadata only — never returns secret material.
+  private listCredentialsText(): string {
+    const rows = this.rows<{ name: string; algo: string; created: number; updated: number }>(
+      `SELECT name, algo, created, updated FROM secrets ORDER BY name`,
+    );
+    if (rows.length === 0) return "No credentials stored.";
+    return JSON.stringify(
+      rows.map((r) => ({ name: r.name, algo: r.algo, created: new Date(r.created).toISOString().slice(0, 10) })),
+      null,
+      2,
+    );
+  }
+
+  // MCP tool: returns the encrypted blob for the caller to decrypt locally.
+  private getCredentialText(name: string): string {
+    const r = this.rows<{ ciphertext: string; wrapped_dek: string; algo: string }>(
+      `SELECT ciphertext, wrapped_dek, algo FROM secrets WHERE name = ?`,
+      name,
+    )[0];
+    if (!r) throw new Error(`no credential named "${name}"`);
+    // The client unwraps the DEK with its master key and decrypts. The server
+    // has handed over only ciphertext — it never saw the plaintext or the key.
+    return JSON.stringify({ name, algo: r.algo, ciphertext: r.ciphertext, wrapped_dek: r.wrapped_dek }, null, 2);
+  }
+
+  // REST (owner token): store/list/delete encrypted credentials.
+  async putCredential(
+    secret: string,
+    name: string,
+    ciphertext: string,
+    wrappedDek: string,
+    algo: string,
+  ): Promise<boolean> {
+    if (!(await this.verify(secret))) return false;
+    const now = Date.now();
+    this.sql.exec(
+      `INSERT INTO secrets (name, ciphertext, wrapped_dek, algo, created, updated)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(name) DO UPDATE SET ciphertext = excluded.ciphertext,
+         wrapped_dek = excluded.wrapped_dek, algo = excluded.algo, updated = excluded.updated`,
+      name,
+      ciphertext,
+      wrappedDek,
+      algo,
+      now,
+      now,
+    );
+    this.broadcast({ type: "credential_changed", name });
+    return true;
+  }
+  async listCredentials(secret: string): Promise<{ name: string; algo: string; created: number }[] | null> {
+    if (!(await this.verify(secret))) return null;
+    return this.rows<{ name: string; algo: string; created: number }>(
+      `SELECT name, algo, created FROM secrets ORDER BY name`,
+    );
+  }
+  async getCredentialBlob(
+    secret: string,
+    name: string,
+  ): Promise<{ ciphertext: string; wrapped_dek: string; algo: string } | null> {
+    if (!(await this.verify(secret))) return null;
+    return this.rows<{ ciphertext: string; wrapped_dek: string; algo: string }>(
+      `SELECT ciphertext, wrapped_dek, algo FROM secrets WHERE name = ?`,
+      name,
+    )[0] ?? null;
+  }
+  async deleteCredential(secret: string, name: string): Promise<boolean> {
+    if (!(await this.verify(secret))) return false;
+    const c = this.sql.exec(`DELETE FROM secrets WHERE name = ?`, name);
+    if (c.rowsWritten > 0) this.broadcast({ type: "credential_changed", name });
+    return c.rowsWritten > 0;
   }
 
   // ---- Memory provider routing ------------------------------------------

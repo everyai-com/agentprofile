@@ -8,6 +8,9 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, dirname, basename } from "node:path";
 import { execSync } from "node:child_process";
+import { webcrypto } from "node:crypto";
+
+const crypto = globalThis.crypto ?? webcrypto;
 
 const VERSION = "0.1.1";
 const DEFAULT_SERVER =
@@ -39,6 +42,7 @@ async function main() {
     case "doctor": return doctor(server);
     case "status": case "whoami": return status(server);
     case "skill": return skill(server, flags);
+    case "secret": return secret(server, flags);
     case "help": case "--help": case "-h": return help();
     default:
       err(`Unknown command: ${cmd}`);
@@ -175,6 +179,142 @@ async function skill(server, flags) {
   const summary = flags.summary || firstLine(body);
   const res = await postJson(`${creds.server}/skills`, { slug, summary, body }, creds.token);
   ok(`Installed skill ${paint(res.installed, c.bold)} — now available in every connected tool.`);
+}
+
+// ---- secret: zero-knowledge credentials -----------------------------------
+// All encryption/decryption happens HERE, on your machine. The server only ever
+// receives ciphertext and a wrapped data key — it can never read your secrets.
+// The master key lives locally in ~/.agentprofile/masterkey (chmod 600).
+
+const MASTER_KEY_FILE = join(CRED_DIR, "masterkey");
+
+async function secret(server, flags) {
+  const sub = flags._[1];
+  const creds = loadCreds();
+  if (!creds?.token) { err("No profile. Run agentprofile init first."); process.exit(1); }
+
+  if (sub === "add" || sub === "set") {
+    const name = flags._[2];
+    if (!name) { err("Usage: agentprofile secret add <name> [--value <v>]"); process.exit(1); }
+    const value = flags.value != null ? String(flags.value) : await readHidden(`Value for ${name}: `);
+    if (!value) { err("empty value"); process.exit(1); }
+    const mk = await loadOrCreateMasterKey();
+    const enc = await encryptSecret(mk, value);
+    await postJson(`${creds.server}/credentials`, { name, ...enc }, creds.token);
+    ok(`Stored ${paint(name, c.bold)} — encrypted on this machine; the server only holds ciphertext.`);
+    return;
+  }
+  if (sub === "list" || sub === "ls") {
+    const r = await getJsonAuth(`${creds.server}/credentials`, creds.token);
+    const list = r.credentials || [];
+    if (list.length === 0) { info("No credentials stored."); return; }
+    for (const cr of list) console.log(`  ${paint(cr.name, c.bold)}  ${paint(cr.algo, c.dim)}`);
+    return;
+  }
+  if (sub === "get") {
+    const name = flags._[2];
+    if (!name) { err("Usage: agentprofile secret get <name>"); process.exit(1); }
+    const blob = await getJsonAuth(`${creds.server}/credentials/${encodeURIComponent(name)}`, creds.token);
+    if (blob.error) { err(blob.error); process.exit(1); }
+    const mk = await loadOrCreateMasterKey();
+    try {
+      const value = await decryptSecret(mk, blob.ciphertext, blob.wrapped_dek);
+      process.stdout.write(value + "\n"); // decrypted locally
+    } catch {
+      err("Could not decrypt — this master key doesn't match the one that stored it.");
+      process.exit(1);
+    }
+    return;
+  }
+  if (sub === "rm" || sub === "remove" || sub === "delete") {
+    const name = flags._[2];
+    if (!name) { err("Usage: agentprofile secret rm <name>"); process.exit(1); }
+    const r = await fetch(`${creds.server}/credentials/${encodeURIComponent(name)}`, {
+      method: "DELETE",
+      headers: { authorization: `Bearer ${creds.token}` },
+    });
+    const j = await r.json();
+    ok(j.deleted ? `Deleted ${name}.` : `No credential named ${name}.`);
+    return;
+  }
+  err("Usage: agentprofile secret <add|list|get|rm> …");
+  process.exit(1);
+}
+
+async function loadOrCreateMasterKey() {
+  if (existsSync(MASTER_KEY_FILE)) {
+    return Buffer.from(readFileSync(MASTER_KEY_FILE, "utf8").trim(), "base64");
+  }
+  mkdirSync(CRED_DIR, { recursive: true });
+  const key = crypto.getRandomValues(new Uint8Array(32));
+  writeFileSync(MASTER_KEY_FILE, Buffer.from(key).toString("base64") + "\n", { mode: 0o600 });
+  warn(`Generated a new master key at ${paint(MASTER_KEY_FILE, c.dim)} (chmod 600).`);
+  warn(`Back it up — without it your stored credentials cannot be decrypted. The server never has it.`);
+  return Buffer.from(key);
+}
+
+// AES-256-GCM. Each secret gets a fresh data key (DEK) which is itself wrapped
+// (encrypted) by the master key. Layout: base64(iv ‖ ciphertext+tag).
+async function encryptSecret(masterKeyBytes, plaintext) {
+  const subtle = globalThis.crypto.subtle;
+  const dekRaw = crypto.getRandomValues(new Uint8Array(32));
+  const dek = await subtle.importKey("raw", dekRaw, "AES-GCM", true, ["encrypt"]);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await subtle.encrypt({ name: "AES-GCM", iv }, dek, new TextEncoder().encode(plaintext)));
+  const mk = await subtle.importKey("raw", masterKeyBytes, "AES-GCM", false, ["encrypt"]);
+  const iv2 = crypto.getRandomValues(new Uint8Array(12));
+  const wrapped = new Uint8Array(await subtle.encrypt({ name: "AES-GCM", iv: iv2 }, mk, dekRaw));
+  return {
+    algo: "A256GCM",
+    ciphertext: b64(concat(iv, ct)),
+    wrapped_dek: b64(concat(iv2, wrapped)),
+  };
+}
+async function decryptSecret(masterKeyBytes, ciphertextB64, wrappedB64) {
+  const subtle = globalThis.crypto.subtle;
+  const mk = await subtle.importKey("raw", masterKeyBytes, "AES-GCM", false, ["decrypt"]);
+  const w = unb64(wrappedB64);
+  const dekRaw = new Uint8Array(await subtle.decrypt({ name: "AES-GCM", iv: w.slice(0, 12) }, mk, w.slice(12)));
+  const dek = await subtle.importKey("raw", dekRaw, "AES-GCM", false, ["decrypt"]);
+  const c2 = unb64(ciphertextB64);
+  const pt = await subtle.decrypt({ name: "AES-GCM", iv: c2.slice(0, 12) }, dek, c2.slice(12));
+  return new TextDecoder().decode(pt);
+}
+function concat(a, b) { const out = new Uint8Array(a.length + b.length); out.set(a); out.set(b, a.length); return out; }
+function b64(u8) { return Buffer.from(u8).toString("base64"); }
+function unb64(s) { return new Uint8Array(Buffer.from(s, "base64")); }
+
+async function getJsonAuth(url, token) {
+  const res = await fetch(url, { headers: { authorization: `Bearer ${token}` } });
+  if (res.status === 404) return { error: "not found" };
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// Minimal hidden-input reader for interactive secret entry.
+function readHidden(prompt) {
+  return new Promise((resolve) => {
+    const stdin = process.stdin;
+    if (!stdin.isTTY) { // piped input
+      let data = "";
+      stdin.on("data", (d) => (data += d));
+      stdin.on("end", () => resolve(data.replace(/\n$/, "")));
+      return;
+    }
+    process.stdout.write(prompt);
+    stdin.setRawMode(true);
+    stdin.resume();
+    let val = "";
+    stdin.on("data", (ch) => {
+      const s = ch.toString("utf8");
+      const code = s.charCodeAt(0);
+      if (s === "\n" || s === "\r") {
+        stdin.setRawMode(false); stdin.pause(); process.stdout.write("\n"); resolve(val);
+      } else if (code === 3) { process.stdout.write("\n"); process.exit(1); }
+      else if (code === 127 || code === 8) { val = val.slice(0, -1); }
+      else { val += s; }
+    });
+  });
 }
 
 // ---- client adapters ------------------------------------------------------
@@ -352,6 +492,10 @@ Commands:
   doctor          Diagnose server, token, and client configuration
   status          Print your profile (skills + memory) via get_context
   skill add FILE  Install a SKILL.md into your profile
+  secret add NAME    Encrypt a credential locally and store the ciphertext
+  secret list        List stored credential names
+  secret get NAME    Fetch and decrypt a credential (locally)
+  secret rm NAME     Delete a stored credential
 
 Options:
   --server URL    Override the server (default ${DEFAULT_SERVER})

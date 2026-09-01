@@ -43,7 +43,10 @@ test("tool descriptions stay within byte budget", () => {
 
 test("required tools are present", () => {
   const names = TOOLS.map((t) => t.name).sort();
-  assert.deepEqual(names, ["forget", "get_context", "get_skill", "list_skills", "recall", "remember"].sort());
+  assert.deepEqual(
+    names,
+    ["forget", "get_context", "get_skill", "get_credential", "list_credentials", "list_skills", "recall", "remember"].sort(),
+  );
 });
 
 test("memory provider config validation", () => {

@@ -86,4 +86,21 @@ export const TOOLS: ToolDef[] = [
       additionalProperties: false,
     },
   },
+  {
+    name: "list_credentials",
+    description:
+      "List the names of the user's stored API credentials (metadata only — never the values). Requires the secrets:read grant, which is off by default.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "get_credential",
+    description:
+      "Fetch one credential by name. Returns an ENCRYPTED blob (ciphertext + wrapped key) that must be decrypted client-side with the user's master key — the server never holds plaintext. Requires the secrets:read grant.",
+    inputSchema: {
+      type: "object",
+      properties: { name: { type: "string" } },
+      required: ["name"],
+      additionalProperties: false,
+    },
+  },
 ];
