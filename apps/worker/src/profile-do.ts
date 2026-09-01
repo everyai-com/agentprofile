@@ -2,6 +2,15 @@ import { DurableObject } from "cloudflare:workers";
 import type { Env } from "./index";
 import { sha256Hex, timingSafeEqual } from "./auth";
 import { TOOLS } from "./tools";
+import {
+  type MemoryConfig,
+  DEFAULT_MEMORY_CONFIG,
+  isExternal,
+  validateConfig,
+  extRemember,
+  extRecall,
+  extForget,
+} from "./memory-providers";
 
 // One instance per user profile. Routed by profileId (idFromName). Owns the
 // profile's SQLite: the init secret hash, memory facts, and installed skills.
@@ -299,11 +308,11 @@ export class ProfileDO extends DurableObject<Env> {
         case "get_skill":
           return { ok: true, text: await this.getSkill(req(args.slug, "slug"), str(args.format) || "claude") };
         case "remember":
-          return { ok: true, text: await this.remember(req(args.fact, "fact"), str(args.scope) || "general", client) };
+          return { ok: true, text: await this.rememberRouted(req(args.fact, "fact"), str(args.scope) || "general", client) };
         case "recall":
-          return { ok: true, text: await this.recall(req(args.query, "query"), str(args.scope), num(args.limit) ?? 8) };
+          return { ok: true, text: await this.recallRouted(req(args.query, "query"), str(args.scope), num(args.limit) ?? 8) };
         case "forget":
-          return { ok: true, text: this.forget(req(args.id, "id")) };
+          return { ok: true, text: await this.forgetRouted(req(args.id, "id")) };
         default:
           return { ok: false, status: 400, error: `unknown tool: ${name}` };
       }
@@ -360,6 +369,52 @@ export class ProfileDO extends DurableObject<Env> {
     if (!body) throw new Error(`skill ${slug} has no content`);
     // Phase 1 translation is a light reframing; real translators land in P4.
     return renderSkill(slug, row.version, body, format);
+  }
+
+  // ---- Memory provider routing ------------------------------------------
+  // The grants/audit/scope layer has already run in callTool. Here we route the
+  // actual storage to the configured backend: builtin (below) or an external
+  // provider (Mem0 / Supermemory) the user brought their own data to.
+  private getMemoryConfig(): MemoryConfig {
+    const raw = this.getMeta("memory_config");
+    if (!raw) return DEFAULT_MEMORY_CONFIG;
+    try { return JSON.parse(raw) as MemoryConfig; } catch { return DEFAULT_MEMORY_CONFIG; }
+  }
+
+  async getMemoryProvider(secret: string): Promise<{ provider: string } | null> {
+    if (!(await this.verify(secret))) return null;
+    return { provider: this.getMemoryConfig().provider };
+  }
+
+  async setMemoryConfig(secret: string, cfg: MemoryConfig): Promise<{ ok: boolean; error?: string }> {
+    if (!(await this.verify(secret))) return { ok: false, error: "unauthorized" };
+    const err = validateConfig(cfg);
+    if (err) return { ok: false, error: err };
+    this.setMeta("memory_config", JSON.stringify(cfg));
+    this.broadcast({ type: "provider_changed", provider: cfg.provider });
+    return { ok: true };
+  }
+
+  private async rememberRouted(fact: string, scope: string, client: string): Promise<string> {
+    const cfg = this.getMemoryConfig();
+    if (isExternal(cfg)) return extRemember(cfg, fact, scope);
+    return this.remember(fact, scope, client);
+  }
+  private async recallRouted(query: string, scope: string | undefined, limit: number): Promise<string> {
+    const cfg = this.getMemoryConfig();
+    if (isExternal(cfg)) {
+      const rows = await extRecall(cfg, query, Math.max(1, Math.min(50, limit)));
+      const filtered = scope ? rows.filter((r) => r.scope === scope) : rows;
+      return filtered.length
+        ? JSON.stringify(filtered.map((r) => ({ id: r.id, fact: r.fact, scope: r.scope, learned: r.learned })), null, 2)
+        : "No matching memories.";
+    }
+    return this.recall(query, scope, limit);
+  }
+  private async forgetRouted(id: string): Promise<string> {
+    const cfg = this.getMemoryConfig();
+    if (isExternal(cfg)) return (await extForget(cfg, id)) ? `Forgot ${id}.` : `Could not delete ${id}.`;
+    return this.forget(id);
   }
 
   private async remember(fact: string, scope: string, clientLabel: string): Promise<string> {

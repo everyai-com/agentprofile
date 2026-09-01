@@ -129,6 +129,31 @@ export default {
         }
       }
 
+      // Memory provider config: choose builtin (default) or an external backend
+      // (Mem0 / Supermemory) the user already uses. Secret-gated.
+      if (path === "/memory-config") {
+        const token = tokenFromRequest(request);
+        if (!token) return unauthorized();
+        const stub = env.PROFILE.get(env.PROFILE.idFromName(token.profileId));
+        if (request.method === "GET") {
+          const data = await stub.getMemoryProvider(token.secret);
+          return data ? Response.json(data) : unauthorized();
+        }
+        if (request.method === "POST") {
+          const cfg = (await request.json()) as {
+            provider?: string;
+            apiKey?: string;
+            userId?: string;
+          };
+          const res = await stub.setMemoryConfig(token.secret, {
+            provider: (cfg.provider as "builtin" | "mem0" | "supermemory") ?? "builtin",
+            apiKey: cfg.apiKey,
+            userId: cfg.userId,
+          });
+          return res.ok ? Response.json({ ok: true }) : badRequest(res.error || "invalid config");
+        }
+      }
+
       // MCP endpoint.
       if (path === "/mcp") {
         const token = tokenFromRequest(request) ?? parseToken(url.searchParams.get("token"));

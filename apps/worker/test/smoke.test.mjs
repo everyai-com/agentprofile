@@ -4,6 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseToken, makeToken, newProfileId, newSecret } from "../src/auth.ts";
 import { TOOLS } from "../src/tools.ts";
+import { validateConfig, isExternal, DEFAULT_MEMORY_CONFIG } from "../src/memory-providers.ts";
 
 test("token round-trips and parses", () => {
   const id = newProfileId();
@@ -43,4 +44,15 @@ test("tool descriptions stay within byte budget", () => {
 test("required tools are present", () => {
   const names = TOOLS.map((t) => t.name).sort();
   assert.deepEqual(names, ["forget", "get_context", "get_skill", "list_skills", "recall", "remember"].sort());
+});
+
+test("memory provider config validation", () => {
+  assert.equal(DEFAULT_MEMORY_CONFIG.provider, "builtin");
+  assert.equal(validateConfig({ provider: "builtin" }), null);
+  assert.equal(isExternal({ provider: "builtin" }), false);
+  assert.equal(isExternal({ provider: "mem0" }), true);
+  // external providers require an apiKey
+  assert.match(validateConfig({ provider: "mem0" }), /apiKey/);
+  assert.equal(validateConfig({ provider: "mem0", apiKey: "k" }), null);
+  assert.match(validateConfig({ provider: "bogus" }), /unknown provider/);
 });
