@@ -31,7 +31,7 @@ export default {
       if (path === "/.well-known/security.txt") {
         return new Response(
           `Contact: mailto:security@agentprofile.dev\n` +
-            `Policy: https://github.com/USER/agentprofile/blob/main/SECURITY.md\n` +
+            `Policy: https://github.com/everyai-com/agentprofile/blob/main/SECURITY.md\n` +
             `Preferred-Languages: en\n`,
           { headers: { "content-type": "text/plain" } },
         );

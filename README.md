@@ -10,14 +10,18 @@ zero-knowledge, and self-hostable on your own Cloudflare account.
 
 ---
 
+> **Live now:** hosted at **https://agentprofile.everyai-com.workers.dev** ·
+> dashboard at [`/app`](https://agentprofile.everyai-com.workers.dev/app)
+
 ## 60-second demo
 
 ```bash
 npx agentprofile
 ```
 
-That creates an **anonymous profile** (no signup), auto-detects your installed
-MCP clients, and writes their config. Restart your tools, then:
+That creates an **anonymous profile** (no signup) on the hosted instance,
+auto-detects your installed MCP clients, and writes their config. Restart your
+tools, then:
 
 1. In **Claude Code**: *"Remember that I prefer pnpm over npm."*
 2. In **Cursor**: *"What package manager do I prefer?"*

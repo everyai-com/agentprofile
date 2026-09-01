@@ -19,4 +19,4 @@ Point at a self-hosted server with `--server` or `AGENTPROFILE_SERVER`:
 AGENTPROFILE_SERVER=https://agentprofile.you.workers.dev npx agentprofile
 ```
 
-Full project: https://github.com/USER/agentprofile · [Apache-2.0](../../LICENSE)
+Full project: https://github.com/everyai-com/agentprofile · [Apache-2.0](../../LICENSE)

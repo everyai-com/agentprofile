@@ -9,7 +9,8 @@ import { homedir } from "node:os";
 import { join, dirname, basename } from "node:path";
 import { execSync } from "node:child_process";
 
-const DEFAULT_SERVER = process.env.AGENTPROFILE_SERVER || "http://localhost:8787";
+const DEFAULT_SERVER =
+  process.env.AGENTPROFILE_SERVER || "https://agentprofile.everyai-com.workers.dev";
 const CRED_DIR = join(homedir(), ".agentprofile");
 const CRED_FILE = join(CRED_DIR, "credentials.json");
 

@@ -74,7 +74,7 @@ export function landingPage(baseUrl: string): string {
     HEAD("agentprofile — your agent's identity, everywhere") +
     `<div class="wrap">
 <div class="top"><span class="brand">agent<span class="dot">·</span>profile</span>
-<nav><a href="/app">Dashboard</a><a href="/setup-prompt">Setup prompt</a><a href="https://github.com/USER/agentprofile">GitHub</a></nav></div>
+<nav><a href="/app">Dashboard</a><a href="/setup-prompt">Setup prompt</a><a href="https://github.com/everyai-com/agentprofile">GitHub</a></nav></div>
 
 <section class="hero">
 <div class="eyebrow">open source · zero-knowledge · self-hostable</div>
@@ -117,7 +117,7 @@ export function dashboardPage(baseUrl: string): string {
     HEAD("agentprofile — dashboard") +
     `<div class="wrap">
 <div class="top"><span class="brand"><a href="/" style="color:inherit">agent<span class="dot">·</span>profile</a></span>
-<nav><a href="/">Home</a><a href="https://github.com/USER/agentprofile">GitHub</a></nav></div>
+<nav><a href="/">Home</a><a href="https://github.com/everyai-com/agentprofile">GitHub</a></nav></div>
 
 <div class="eyebrow">live dashboard</div>
 <h1 style="font-size:2rem">Your profile, in real time</h1>
