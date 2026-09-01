@@ -31,7 +31,7 @@ It supports **two ways to authenticate**:
 
 - **OAuth** (recommended) — clients that support MCP OAuth discover it automatically
   from the URL and show a consent screen.
-- **Bearer token** — run `npx agentprofile` to get a token, or hit `POST /profiles`.
+- **Bearer token** — run `npx @magicteams_ai/agentprofile` to get a token, or hit `POST /profiles`.
 
 <details><summary><b>Claude Code</b></summary>
 
@@ -59,12 +59,12 @@ claude mcp add --transport http agentprofile https://agentprofile.everyai-com.wo
 ```
 </details>
 
-Or just run **`npx agentprofile`** and it configures every client it finds.
+Or just run **`npx @magicteams_ai/agentprofile`** and it configures every client it finds.
 
 ## 60-second demo
 
 ```bash
-npx agentprofile
+npx @magicteams_ai/agentprofile
 ```
 
 That creates an **anonymous profile** (no signup) on the hosted instance,
@@ -125,7 +125,7 @@ In another terminal:
 
 ```bash
 # point the CLI at your local server
-AGENTPROFILE_SERVER=http://localhost:8787 npx agentprofile
+AGENTPROFILE_SERVER=http://localhost:8787 npx @magicteams_ai/agentprofile
 ```
 
 Run the tests and typecheck:
@@ -145,7 +145,7 @@ cd apps/worker
 npx wrangler r2 bucket create agentprofile-bundles
 npx wrangler deploy
 # then set PUBLIC_BASE_URL to your deployed URL and connect with:
-AGENTPROFILE_SERVER=https://agentprofile.<you>.workers.dev npx agentprofile
+AGENTPROFILE_SERVER=https://agentprofile.<you>.workers.dev npx @magicteams_ai/agentprofile
 ```
 
 ## Roadmap
@@ -154,9 +154,7 @@ AGENTPROFILE_SERVER=https://agentprofile.<you>.workers.dev npx agentprofile
 - **P2:** per-client **grants + audit log** with live enforcement + dashboard access panel ✅; MCP sessions (`Mcp-Session-Id`) ✅; **semantic recall** via Workers AI embeddings (keyword fallback) ✅; **pluggable memory providers** (builtin default + Mem0 + Supermemory adapters, `/memory-config`) ✅; **OAuth 2.0 + PKCE** consent flow with discovery, dynamic registration, and consent screen ✅.
 - **P3:** zero-knowledge credentials (client-side E2E), JIT injection, approval flow.
 - **P4:** one-click Deploy-to-Cloudflare, signed skill registry, format translators.
-- **P3:** Zero-knowledge credentials (client-side E2E), JIT injection, approval flow.
-- **P4:** One-click Deploy-to-Cloudflare, signed skill registry, format translators.
-- **P5:** Teams, SSO, hosted cloud.
+- **P5:** teams, SSO, hosted cloud.
 
 See the full plan in [`docs/`](./docs).
 

@@ -9,6 +9,7 @@ import { homedir } from "node:os";
 import { join, dirname, basename } from "node:path";
 import { execSync } from "node:child_process";
 
+const VERSION = "0.1.1";
 const DEFAULT_SERVER =
   process.env.AGENTPROFILE_SERVER || "https://agentprofile.everyai-com.workers.dev";
 const CRED_DIR = join(homedir(), ".agentprofile");
@@ -27,6 +28,9 @@ const err = (s) => console.error(paint("✗ ", c.red) + s);
 async function main() {
   const argv = process.argv.slice(2);
   const flags = parseFlags(argv);
+  // Flags win over the default command, so `--help`/`--version` never trigger init.
+  if (flags.help || flags.h) return help();
+  if (flags.version || flags.v) { console.log("agentprofile " + VERSION); return; }
   const cmd = flags._[0] || "init";
   const server = (flags.server || DEFAULT_SERVER).replace(/\/$/, "");
 

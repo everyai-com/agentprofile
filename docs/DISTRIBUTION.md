@@ -6,7 +6,7 @@ for you); the rest are prepared in this repo.
 
 ## 1. npm — publish the CLI (free) 🔑
 
-Makes `npx agentprofile` resolve for everyone. The name `agentprofile` is
+Makes `npx @magicteams_ai/agentprofile` resolve for everyone. The name `agentprofile` is
 available and `packages/cli` is publish-ready.
 
 ```bash

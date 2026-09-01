@@ -84,7 +84,7 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
 `;
 
 export function landingPage(baseUrl: string): string {
-  const npx = "npx agentprofile";
+  const npx = "npx @magicteams_ai/agentprofile";
   return (
     HEAD("agentprofile — your agent's identity, everywhere") +
     `<div class="wrap">
@@ -139,7 +139,7 @@ export function dashboardPage(baseUrl: string): string {
 <p style="color:var(--muted)">Paste your token to watch skills and memory sync live. When any agent calls <code>remember</code>, it appears here instantly.</p>
 
 <div class="tokenbar">
-<input id="token" placeholder="ap_… paste your token (from npx agentprofile)" autocomplete="off" spellcheck="false">
+<input id="token" placeholder="ap_… paste your token (from npx @magicteams_ai/agentprofile)" autocomplete="off" spellcheck="false">
 <button class="btn" id="connect">Connect</button>
 <button class="btn ghost" id="new">Create new</button>
 </div>
@@ -170,7 +170,7 @@ export function dashboardPage(baseUrl: string): string {
 <div id="audit"><div class="empty">Tool calls will stream here as your agents use the profile.</div></div>
 </div>
 
-<div class="foot"><span>Tip: run <code>npx agentprofile</code>, then paste the printed token here.</span></div>
+<div class="foot"><span>Tip: run <code>npx @magicteams_ai/agentprofile</code>, then paste the printed token here.</span></div>
 </div>
 <script>${DASH_JS}</script></body></html>`
   );
@@ -202,7 +202,7 @@ function renderAccess(){
     }).join('');
     return '<div class="grant'+(g.revoked?' rev':'')+'"><div><div class="who">'+esc(g.client)+'</div><div class="seen">seen '+timeAgo(g.lastSeen)+'</div></div>'+
       '<div class="scopes">'+toggles+'<button class="revoke" data-revoke="'+esc(g.client)+'" data-to="'+(g.revoked?'0':'1')+'">'+(g.revoked?'unrevoke':'revoke')+'</button></div></div>';
-  }).join('') : '<div class="empty">No tools have connected yet. Run npx agentprofile, then use a tool.</div>';
+  }).join('') : '<div class="empty">No tools have connected yet. Run npx @magicteams_ai/agentprofile, then use a tool.</div>';
   $('#audit').innerHTML = audit.length? audit.slice(0,40).map(a=>
     '<div class="audit-line"><span class="t">'+timeAgo(a.ts)+'</span><span class="'+(a.allowed?'ok':'no')+'">'+(a.allowed?'✓':'✗')+'</span><span><b>'+esc(a.client)+'</b> · '+esc(a.tool)+'</span></div>'
   ).join('') : '<div class="empty">No activity yet.</div>';
@@ -252,7 +252,7 @@ function toast(msg){
 }
 
 $('#connect').onclick=()=>{token=$('#token').value.trim();if(!token)return;localStorage.setItem('ap_token',token);connectWS();};
-$('#new').onclick=async()=>{const r=await fetch('/profiles',{method:'POST'});const j=await r.json();token=j.token;$('#token').value=token;localStorage.setItem('ap_token',token);$('#connHint').innerHTML='New profile created. Connect it to a tool with: <code>npx agentprofile</code> (token already saved here).';connectWS();};
+$('#new').onclick=async()=>{const r=await fetch('/profiles',{method:'POST'});const j=await r.json();token=j.token;$('#token').value=token;localStorage.setItem('ap_token',token);$('#connHint').innerHTML='New profile created. Connect it to a tool with: <code>npx @magicteams_ai/agentprofile</code> (token already saved here).';connectWS();};
 $('#addFact').onclick=async()=>{const v=$('#factInput').value.trim();if(!v)return;$('#factInput').value='';await callTool('remember',{fact:v,scope:$('#scopeInput').value.trim()||'general'});};
 $('#addSkill').onclick=async()=>{const body=$('#skillInput').value.trim();if(!body)return;const slug=(body.match(/name:\\s*([a-z0-9-]+)/i)||[])[1]||('skill-'+Date.now());const summary=(body.match(/description:\\s*(.+)/i)||[])[1]||'';await fetch('/skills',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+token},body:JSON.stringify({slug,summary,body})});$('#skillInput').value='';};
 $('#factInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('#addFact').click()});
@@ -307,7 +307,7 @@ memory across all my AI tools through one MCP server.
 Please do the following, checking with me before any step that changes my config:
 
 1. Run this in my terminal and capture the token it prints:
-     npx agentprofile init --server ${baseUrl}
+     npx @magicteams_ai/agentprofile init --server ${baseUrl}
    (This creates an anonymous profile and auto-configures the MCP clients you find:
     Claude Code and Cursor.)
 
@@ -319,7 +319,7 @@ Please do the following, checking with me before any step that changes my config
      - In another tool, ask: "What package manager do I prefer?"
    It should recall the fact. If it does, setup succeeded.
 
-4. If anything fails, run:  npx agentprofile doctor --server ${baseUrl}
+4. If anything fails, run:  npx @magicteams_ai/agentprofile doctor --server ${baseUrl}
    and walk me through the fix it prints.
 
 My dashboard is at ${baseUrl}/app — I can paste the token there to watch memory sync live.`;

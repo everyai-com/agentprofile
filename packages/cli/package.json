@@ -1,6 +1,6 @@
 {
-  "name": "agentprofile",
-  "version": "0.1.0",
+  "name": "@magicteams_ai/agentprofile",
+  "version": "0.1.1",
   "description": "Your agent's identity, everywhere. One profile — skills, credentials, memory — synced to every agent tool. Run `npx agentprofile` to connect all your tools in under a minute.",
   "license": "Apache-2.0",
   "type": "module",
