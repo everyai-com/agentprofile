@@ -1,5 +1,10 @@
 # agentprofile
 
+![license](https://img.shields.io/badge/license-Apache--2.0-blue)
+![MCP](https://img.shields.io/badge/MCP-Streamable_HTTP-6b46c1)
+![clients](https://img.shields.io/badge/works_with-Claude_Code_·_Cursor_·_Codex-c4571a)
+![status](https://img.shields.io/badge/hosted-live-2b7a5b)
+
 **Your agent's identity, everywhere.** One profile — skills, credentials, and
 memory — synced to every agent tool through a single MCP URL. Open source,
 zero-knowledge, and self-hostable on your own Cloudflare account.
@@ -12,6 +17,49 @@ zero-knowledge, and self-hostable on your own Cloudflare account.
 
 > **Live now:** hosted at **https://agentprofile.everyai-com.workers.dev** ·
 > dashboard at [`/app`](https://agentprofile.everyai-com.workers.dev/app)
+
+## Connect (any MCP client)
+
+The server is a **remote MCP server** (Streamable HTTP) — no install needed, just
+one URL:
+
+```
+https://agentprofile.everyai-com.workers.dev/mcp
+```
+
+It supports **two ways to authenticate**:
+
+- **OAuth** (recommended) — clients that support MCP OAuth discover it automatically
+  from the URL and show a consent screen.
+- **Bearer token** — run `npx agentprofile` to get a token, or hit `POST /profiles`.
+
+<details><summary><b>Claude Code</b></summary>
+
+```bash
+claude mcp add --transport http agentprofile https://agentprofile.everyai-com.workers.dev/mcp
+```
+Or with a bearer token:
+```bash
+claude mcp add --transport http agentprofile https://agentprofile.everyai-com.workers.dev/mcp \
+  --header "Authorization: Bearer ap_…"
+```
+</details>
+
+<details><summary><b>Cursor / other <code>mcp.json</code> clients</b></summary>
+
+```json
+{
+  "mcpServers": {
+    "agentprofile": {
+      "url": "https://agentprofile.everyai-com.workers.dev/mcp",
+      "headers": { "Authorization": "Bearer ap_…" }
+    }
+  }
+}
+```
+</details>
+
+Or just run **`npx agentprofile`** and it configures every client it finds.
 
 ## 60-second demo
 

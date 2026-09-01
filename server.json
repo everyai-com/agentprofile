@@ -1,0 +1,17 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+  "name": "io.github.everyai-com/agentprofile",
+  "description": "Your agent's identity, everywhere. One profile — skills, credentials, and memory — synced to every agent tool through a single MCP URL.",
+  "repository": {
+    "url": "https://github.com/everyai-com/agentprofile",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "websiteUrl": "https://agentprofile.everyai-com.workers.dev",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://agentprofile.everyai-com.workers.dev/mcp"
+    }
+  ]
+}
