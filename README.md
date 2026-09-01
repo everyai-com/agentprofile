@@ -103,7 +103,9 @@ AGENTPROFILE_SERVER=https://agentprofile.<you>.workers.dev npx agentprofile
 ## Roadmap
 
 - **P1:** MCP server + ProfileDO, 6 tools, memory + skills, instant-profile CLI, live dashboard. ✅
-- **P2 (in progress):** per-client **grants + audit log** with live enforcement and a dashboard access panel ✅; MCP sessions (`Mcp-Session-Id`) ✅. Next: OAuth consent flow, Vectorize semantic recall, pluggable memory providers (Mem0 / Supermemory / Zep).
+- **P2:** per-client **grants + audit log** with live enforcement + dashboard access panel ✅; MCP sessions (`Mcp-Session-Id`) ✅; **semantic recall** via Workers AI embeddings (keyword fallback) ✅; **pluggable memory providers** (builtin default + Mem0 + Supermemory adapters, `/memory-config`) ✅; **OAuth 2.0 + PKCE** consent flow with discovery, dynamic registration, and consent screen ✅.
+- **P3:** zero-knowledge credentials (client-side E2E), JIT injection, approval flow.
+- **P4:** one-click Deploy-to-Cloudflare, signed skill registry, format translators.
 - **P3:** Zero-knowledge credentials (client-side E2E), JIT injection, approval flow.
 - **P4:** One-click Deploy-to-Cloudflare, signed skill registry, format translators.
 - **P5:** Teams, SSO, hosted cloud.

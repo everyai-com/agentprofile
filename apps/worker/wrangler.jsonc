@@ -9,10 +9,14 @@
   // One Durable Object per user profile — the source of truth for that profile's
   // skills, memory, and (Phase 3) credentials. Uses DO-embedded SQLite.
   "durable_objects": {
-    "bindings": [{ "name": "PROFILE", "class_name": "ProfileDO" }]
+    "bindings": [
+      { "name": "PROFILE", "class_name": "ProfileDO" },
+      { "name": "OAUTH", "class_name": "OAuthDO" }
+    ]
   },
   "migrations": [
-    { "tag": "v1", "new_sqlite_classes": ["ProfileDO"] }
+    { "tag": "v1", "new_sqlite_classes": ["ProfileDO"] },
+    { "tag": "v2", "new_sqlite_classes": ["OAuthDO"] }
   ],
 
   // Skill bundles will live in R2 (content-addressed). Left unbound for the first

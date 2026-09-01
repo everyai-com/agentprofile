@@ -260,6 +260,46 @@ $('#factInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('#addFact').
 if(token) connectWS();
 `;
 
+export function consentPage(params: {
+  clientName: string;
+  clientId: string;
+  redirectUri: string;
+  state: string;
+  challenge: string;
+  method: string;
+  scopes: string[];
+}): string {
+  const hidden = (k: string, v: string) => `<input type="hidden" name="${k}" value="${escapeAttr(v)}">`;
+  return (
+    HEAD("Authorize · agentprofile") +
+    `<div class="wrap" style="max-width:30rem">
+<div class="top"><span class="brand">agent<span class="dot">·</span>profile</span></div>
+<div class="panel" style="padding:1.6rem 1.8rem">
+<div class="eyebrow">authorize access</div>
+<h1 style="font-size:1.5rem;margin:.3rem 0 .8rem"><b>${escapeHtml(params.clientName)}</b> wants to connect</h1>
+<p style="color:var(--muted)">This will create a new agentprofile and give <b>${escapeHtml(params.clientName)}</b> access to:</p>
+<ul style="color:var(--ink);font-size:.92rem">
+<li>Read your skills and memory</li>
+<li>Save new memories</li>
+</ul>
+<p class="hint">It will <b>not</b> get access to credentials — that stays default-denied until you grant it in the dashboard. You can revoke this tool anytime.</p>
+<form method="POST" action="/authorize" style="display:flex;gap:.6rem;margin-top:1.2rem">
+${hidden("client_id", params.clientId)}${hidden("redirect_uri", params.redirectUri)}${hidden("state", params.state)}${hidden("code_challenge", params.challenge)}${hidden("code_challenge_method", params.method)}
+<button class="btn" name="decision" value="allow" type="submit">Authorize</button>
+<button class="btn ghost" name="decision" value="deny" type="submit">Cancel</button>
+</form>
+</div>
+</div></body></html>`
+  );
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c] as string);
+}
+function escapeAttr(s: string): string {
+  return escapeHtml(s).replace(/"/g, "&quot;");
+}
+
 export function setupPromptText(baseUrl: string): string {
   return `You are helping me set up "agentprofile" — a service that syncs my agent skills and
 memory across all my AI tools through one MCP server.
