@@ -36,6 +36,29 @@ export class ProfileDO extends DurableObject<Env> {
         installed INTEGER NOT NULL,
         PRIMARY KEY (slug)
       );
+      -- Phase 2: per-client access control. One grant per connected tool.
+      CREATE TABLE IF NOT EXISTS grants (
+        client TEXT PRIMARY KEY,
+        scopes TEXT NOT NULL,
+        revoked INTEGER NOT NULL DEFAULT 0,
+        first_seen INTEGER NOT NULL,
+        last_seen INTEGER NOT NULL
+      );
+      -- MCP sessions map a session id (returned on initialize) to a client, so we
+      -- can attribute and authorize each later tools/call to the right grant.
+      CREATE TABLE IF NOT EXISTS sessions (
+        id TEXT PRIMARY KEY,
+        client TEXT NOT NULL,
+        created INTEGER NOT NULL
+      );
+      -- Append-only audit of every authorized/denied tool call.
+      CREATE TABLE IF NOT EXISTS audit (
+        ts INTEGER NOT NULL,
+        client TEXT NOT NULL,
+        tool TEXT NOT NULL,
+        allowed INTEGER NOT NULL,
+        detail TEXT
+      );
     `);
   }
 
@@ -85,6 +108,7 @@ export class ProfileDO extends DurableObject<Env> {
     return {
       skills: skills.map((s) => ({ slug: s.slug, version: s.version, summary: s.summary, enabled: !!s.enabled })),
       facts: facts.map((f) => ({ id: f.id, body: f.body, scope: f.scope, learned: provenance(f) })),
+      ...this.accessSnapshot(),
     };
   }
 
@@ -109,19 +133,140 @@ export class ProfileDO extends DurableObject<Env> {
     return timingSafeEqual(got, stored);
   }
 
+  // ---- Grants, sessions, audit (Phase 2) ---------------------------------
+
+  // The scope each tool requires. Secrets tools (Phase 3) will default-deny.
+  private static readonly TOOL_SCOPE: Record<string, string> = {
+    get_context: "memory:read",
+    list_skills: "skills:read",
+    get_skill: "skills:read",
+    remember: "memory:write",
+    recall: "memory:read",
+    forget: "memory:write",
+  };
+  private static readonly DEFAULT_SCOPES = ["skills:read", "memory:read", "memory:write"];
+
+  // Create/refresh a grant for a client (called on MCP initialize) and open a
+  // session. Returns the session id the client should echo as Mcp-Session-Id.
+  async createSession(secret: string, client: string): Promise<string | null> {
+    if (!(await this.verify(secret))) return null;
+    this.ensureGrant(client);
+    const id = crypto.randomUUID();
+    this.sql.exec(`INSERT INTO sessions (id, client, created) VALUES (?, ?, ?)`, id, client, Date.now());
+    return id;
+  }
+
+  private ensureGrant(client: string): void {
+    const now = Date.now();
+    const existing = this.rows<{ client: string }>(`SELECT client FROM grants WHERE client = ?`, client)[0];
+    if (existing) {
+      this.sql.exec(`UPDATE grants SET last_seen = ? WHERE client = ?`, now, client);
+    } else {
+      this.sql.exec(
+        `INSERT INTO grants (client, scopes, revoked, first_seen, last_seen) VALUES (?, ?, 0, ?, ?)`,
+        client,
+        JSON.stringify(ProfileDO.DEFAULT_SCOPES),
+        now,
+        now,
+      );
+      this.broadcast({ type: "grant_changed", client });
+    }
+  }
+
+  private resolveClient(sessionId: string | undefined, fallback: string): string {
+    if (sessionId) {
+      const r = this.rows<{ client: string }>(`SELECT client FROM sessions WHERE id = ?`, sessionId)[0];
+      if (r) return r.client;
+    }
+    return fallback;
+  }
+
+  private grantAllows(client: string, scope: string): boolean {
+    const g = this.rows<{ scopes: string; revoked: number }>(
+      `SELECT scopes, revoked FROM grants WHERE client = ?`,
+      client,
+    )[0];
+    if (!g) return true; // no grant record yet (e.g. legacy) → allow; grant is created on next initialize
+    if (g.revoked) return false;
+    try {
+      return (JSON.parse(g.scopes) as string[]).includes(scope);
+    } catch {
+      return false;
+    }
+  }
+
+  private writeAudit(client: string, tool: string, allowed: boolean, detail = ""): void {
+    this.sql.exec(
+      `INSERT INTO audit (ts, client, tool, allowed, detail) VALUES (?, ?, ?, ?, ?)`,
+      Date.now(),
+      client,
+      tool,
+      allowed ? 1 : 0,
+      detail,
+    );
+    this.broadcast({ type: "audit", client, tool, allowed, ts: Date.now() });
+  }
+
+  // Dashboard/CLI management (all secret-gated).
+  async listAccess(secret: string) {
+    if (!(await this.verify(secret))) return null;
+    return this.accessSnapshot();
+  }
+  async setScopes(secret: string, client: string, scopes: string[]): Promise<boolean> {
+    if (!(await this.verify(secret))) return false;
+    this.sql.exec(`UPDATE grants SET scopes = ? WHERE client = ?`, JSON.stringify(scopes), client);
+    this.broadcast({ type: "grant_changed", client });
+    return true;
+  }
+  async setRevoked(secret: string, client: string, revoked: boolean): Promise<boolean> {
+    if (!(await this.verify(secret))) return false;
+    this.sql.exec(`UPDATE grants SET revoked = ? WHERE client = ?`, revoked ? 1 : 0, client);
+    if (revoked) this.sql.exec(`DELETE FROM sessions WHERE client = ?`, client);
+    this.broadcast({ type: "grant_changed", client });
+    return true;
+  }
+
+  private accessSnapshot() {
+    const grants = this.rows<{ client: string; scopes: string; revoked: number; first_seen: number; last_seen: number }>(
+      `SELECT * FROM grants ORDER BY last_seen DESC`,
+    ).map((g) => ({
+      client: g.client,
+      scopes: safeParse(g.scopes),
+      revoked: !!g.revoked,
+      firstSeen: g.first_seen,
+      lastSeen: g.last_seen,
+    }));
+    const audit = this.rows<{ ts: number; client: string; tool: string; allowed: number }>(
+      `SELECT ts, client, tool, allowed FROM audit ORDER BY ts DESC LIMIT 40`,
+    ).map((a) => ({ ts: a.ts, client: a.client, tool: a.tool, allowed: !!a.allowed }));
+    return { grants, audit, allScopes: ["skills:read", "memory:read", "memory:write", "secrets:read"] };
+  }
+
   // ---- MCP dispatch -------------------------------------------------------
-  // Verifies the secret, then runs one tool. `clientLabel` is the MCP client's
-  // reported name, stored as provenance on writes.
+  // Verifies the secret, resolves the calling client from its session, enforces
+  // that client's grant scope for the tool, audits, then runs it.
   async callTool(
     secret: string,
     name: string,
     args: Record<string, unknown>,
     clientLabel: string,
+    sessionId?: string,
   ): Promise<{ ok: true; text: string } | { ok: false; status: number; error: string }> {
     if (!(await this.verify(secret))) {
       return { ok: false, status: 401, error: "invalid token" };
     }
+    const client = this.resolveClient(sessionId, clientLabel);
+    const requiredScope = ProfileDO.TOOL_SCOPE[name];
+    if (requiredScope && !this.grantAllows(client, requiredScope)) {
+      this.writeAudit(client, name, false, `denied: needs ${requiredScope}`);
+      return {
+        ok: false,
+        status: 403,
+        error: `"${client}" is not granted ${requiredScope}. Adjust access in the dashboard.`,
+      };
+    }
     try {
+      this.writeAudit(client, name, true);
       switch (name) {
         case "get_context":
           return { ok: true, text: this.getContext(str(args.query)) };
@@ -130,7 +275,7 @@ export class ProfileDO extends DurableObject<Env> {
         case "get_skill":
           return { ok: true, text: await this.getSkill(req(args.slug, "slug"), str(args.format) || "claude") };
         case "remember":
-          return { ok: true, text: this.remember(req(args.fact, "fact"), str(args.scope) || "general", clientLabel) };
+          return { ok: true, text: this.remember(req(args.fact, "fact"), str(args.scope) || "general", client) };
         case "recall":
           return { ok: true, text: this.recall(req(args.query, "query"), str(args.scope), num(args.limit) ?? 8) };
         case "forget":
@@ -326,6 +471,10 @@ function fuzzyMatch(a: string, b: string): boolean {
   const n = Math.min(a.length, b.length, Math.max(4, Math.floor(Math.min(a.length, b.length) * 0.7)));
   if (n >= 4 && a.slice(0, n) === b.slice(0, n)) return true;
   return false;
+}
+
+function safeParse(s: string): string[] {
+  try { return JSON.parse(s) as string[]; } catch { return []; }
 }
 
 function provenance(f: Fact): string {

@@ -14,5 +14,12 @@
   "engines": {
     "node": ">=18"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/everyai-com/agentprofile.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/everyai-com/agentprofile#readme",
+  "bugs": "https://github.com/everyai-com/agentprofile/issues",
   "keywords": ["mcp", "claude-code", "cursor", "ai-agents", "agent-memory", "skills"]
 }

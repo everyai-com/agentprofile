@@ -103,6 +103,31 @@ export default {
         return okd ? Response.json({ installed: b.slug }) : unauthorized();
       }
 
+      // Access management (dashboard/CLI): list grants + audit, set scopes, revoke.
+      if (path === "/grants") {
+        const token = tokenFromRequest(request);
+        if (!token) return unauthorized();
+        const stub = env.PROFILE.get(env.PROFILE.idFromName(token.profileId));
+        if (request.method === "GET") {
+          const data = await stub.listAccess(token.secret);
+          return data ? Response.json(data) : unauthorized();
+        }
+        if (request.method === "POST") {
+          const b = (await request.json()) as {
+            action?: string;
+            client?: string;
+            scopes?: string[];
+            revoked?: boolean;
+          };
+          if (!b.client) return badRequest("client is required");
+          let done = false;
+          if (b.action === "scopes" && Array.isArray(b.scopes)) done = await stub.setScopes(token.secret, b.client, b.scopes);
+          else if (b.action === "revoke") done = await stub.setRevoked(token.secret, b.client, b.revoked !== false);
+          else return badRequest("action must be 'scopes' or 'revoke'");
+          return done ? Response.json({ ok: true }) : unauthorized();
+        }
+      }
+
       // MCP endpoint.
       if (path === "/mcp") {
         const token = tokenFromRequest(request) ?? parseToken(url.searchParams.get("token"));

@@ -31,16 +31,26 @@ export async function handleMcp(request: Request, env: Env, token: ParsedToken):
 
   const batch = Array.isArray(body) ? body : [body];
   const responses: unknown[] = [];
+  let newSessionId: string | undefined;
   for (const msg of batch) {
     const res = await dispatch(msg, env, token, request);
-    if (res !== undefined) responses.push(res); // notifications yield undefined
+    if (res && typeof res === "object" && "__sessionId" in res) {
+      const wrapped = res as { __sessionId: string; payload: unknown };
+      newSessionId = wrapped.__sessionId;
+      responses.push(wrapped.payload);
+    } else if (res !== undefined) {
+      responses.push(res); // notifications yield undefined
+    }
   }
 
+  const headers: Record<string, string> = {};
+  if (newSessionId) headers["Mcp-Session-Id"] = newSessionId;
+
   if (responses.length === 0) {
-    return new Response(null, { status: 202 }); // all notifications
+    return new Response(null, { status: 202, headers }); // all notifications
   }
   const payload = Array.isArray(body) ? responses : responses[0];
-  return Response.json(payload);
+  return Response.json(payload, { headers });
 }
 
 async function dispatch(
@@ -54,8 +64,12 @@ async function dispatch(
   switch (msg.method) {
     case "initialize": {
       const clientName =
-        (msg.params?.clientInfo as { name?: string } | undefined)?.name || "unknown-client";
-      return ok(id, {
+        (msg.params?.clientInfo as { name?: string } | undefined)?.name ||
+        request.headers.get("x-mcp-client") ||
+        "unknown-client";
+      const stub = env.PROFILE.get(env.PROFILE.idFromName(token.profileId));
+      const sessionId = await stub.createSession(token.secret, clientName);
+      const payload = ok(id, {
         protocolVersion: PROTOCOL_VERSION,
         capabilities: { tools: { listChanged: false } },
         serverInfo: { name: "agentprofile", version: "0.1.0" },
@@ -63,6 +77,9 @@ async function dispatch(
           `This is the user's agentprofile. Call get_context first to load their skills and memory. ` +
           `Use remember/recall to share facts across all their agent tools. (client: ${clientName})`,
       });
+      // Signal the transport to attach Mcp-Session-Id; the client echoes it so
+      // later tool calls are attributed to this client's grant.
+      return sessionId ? { __sessionId: sessionId, payload } : payload;
     }
 
     case "notifications/initialized":
@@ -80,9 +97,10 @@ async function dispatch(
       const name = String(params.name ?? "");
       const args = (params.arguments as Record<string, unknown>) ?? {};
       const clientLabel = request.headers.get("x-mcp-client") || "mcp-client";
+      const sessionId = request.headers.get("mcp-session-id") || undefined;
 
       const stub = env.PROFILE.get(env.PROFILE.idFromName(token.profileId));
-      const result = await stub.callTool(token.secret, name, args, clientLabel);
+      const result = await stub.callTool(token.secret, name, args, clientLabel, sessionId);
 
       if (!result.ok) {
         if (result.status === 401) return rpcErrorObj(id, -32001, "Unauthorized");

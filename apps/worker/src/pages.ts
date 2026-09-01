@@ -66,6 +66,21 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
 .flash{animation:flash 1.2s ease}
 @keyframes flash{0%{background:var(--accent-soft)}100%{background:transparent}}
 .hint{font-size:.85rem;color:var(--muted);margin-top:.5rem}
+.grant{border-top:1px solid var(--line);padding:.75rem 0;display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;align-items:center}
+.grant:first-of-type{border-top:none}
+.grant .who{font-weight:600;font-size:.92rem}
+.grant.rev .who{text-decoration:line-through;color:var(--muted)}
+.grant .seen{font:.7rem var(--mono);color:var(--muted)}
+.scopes{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center}
+.scope-tog{font:.68rem var(--mono);border:1px solid var(--line);border-radius:6px;padding:.15rem .5rem;cursor:pointer;color:var(--muted);background:transparent;user-select:none}
+.scope-tog.on{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.scope-tog.deny{opacity:.55}
+.revoke{font:.7rem var(--mono);border:1px solid var(--line);border-radius:6px;padding:.2rem .55rem;cursor:pointer;color:var(--muted);background:transparent}
+.revoke:hover{color:#fff;background:#A63A3A;border-color:#A63A3A}
+.audit-line{display:flex;gap:.6rem;align-items:center;padding:.3rem 0;font-size:.85rem;border-top:1px solid var(--line)}
+.audit-line:first-of-type{border-top:none}
+.audit-line .t{font:.7rem var(--mono);color:var(--muted);min-width:5.5rem}
+.audit-line .ok{color:var(--good)}.audit-line .no{color:#A63A3A}
 `;
 
 export function landingPage(baseUrl: string): string {
@@ -144,6 +159,17 @@ export function dashboardPage(baseUrl: string): string {
 </div>
 <p class="hint" id="connHint"></p>
 
+<div class="panel" style="margin-top:1.25rem">
+<h3>Connected tools &amp; access <span class="count" id="gcount">0</span></h3>
+<p class="hint" style="margin-top:0">Each tool gets its own grant. Toggle a scope or revoke a tool — it takes effect instantly on its next call.</p>
+<div id="grants"><div class="empty">No tools have connected yet.</div></div>
+</div>
+
+<div class="panel" style="margin-top:1.25rem">
+<h3>Live activity</h3>
+<div id="audit"><div class="empty">Tool calls will stream here as your agents use the profile.</div></div>
+</div>
+
 <div class="foot"><span>Tip: run <code>npx agentprofile</code>, then paste the printed token here.</span></div>
 </div>
 <script>${DASH_JS}</script></body></html>`
@@ -164,7 +190,32 @@ async function rpc(method,params){
 }
 async function callTool(name,args){const j=await rpc('tools/call',{name,arguments:args||{}});return j.result?.content?.[0]?.text}
 
-let facts=[],skills=[];
+let facts=[],skills=[],grants=[],audit=[],allScopes=['skills:read','memory:read','memory:write','secrets:read'];
+function timeAgo(ts){const s=Math.floor((Date.now()-ts)/1000);if(s<60)return s+'s ago';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
+async function setGrant(client,body){await fetch('/grants',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+token},body:JSON.stringify({client,...body})});}
+function renderAccess(){
+  $('#gcount').textContent=grants.length;
+  $('#grants').innerHTML = grants.length? grants.map(g=>{
+    const toggles=allScopes.map(sc=>{
+      const on=g.scopes.includes(sc);const deny=sc==='secrets:read';
+      return '<span class="scope-tog'+(on?' on':'')+(deny?' deny':'')+'" data-client="'+esc(g.client)+'" data-scope="'+sc+'">'+sc+'</span>';
+    }).join('');
+    return '<div class="grant'+(g.revoked?' rev':'')+'"><div><div class="who">'+esc(g.client)+'</div><div class="seen">seen '+timeAgo(g.lastSeen)+'</div></div>'+
+      '<div class="scopes">'+toggles+'<button class="revoke" data-revoke="'+esc(g.client)+'" data-to="'+(g.revoked?'0':'1')+'">'+(g.revoked?'unrevoke':'revoke')+'</button></div></div>';
+  }).join('') : '<div class="empty">No tools have connected yet. Run npx agentprofile, then use a tool.</div>';
+  $('#audit').innerHTML = audit.length? audit.slice(0,40).map(a=>
+    '<div class="audit-line"><span class="t">'+timeAgo(a.ts)+'</span><span class="'+(a.allowed?'ok':'no')+'">'+(a.allowed?'✓':'✗')+'</span><span><b>'+esc(a.client)+'</b> · '+esc(a.tool)+'</span></div>'
+  ).join('') : '<div class="empty">No activity yet.</div>';
+  document.querySelectorAll('.scope-tog').forEach(t=>t.onclick=async()=>{
+    const g=grants.find(x=>x.client===t.dataset.client);if(!g)return;
+    const has=g.scopes.includes(t.dataset.scope);
+    const next=has?g.scopes.filter(s=>s!==t.dataset.scope):[...g.scopes,t.dataset.scope];
+    await setGrant(t.dataset.client,{action:'scopes',scopes:next});
+  });
+  document.querySelectorAll('[data-revoke]').forEach(b=>b.onclick=async()=>{
+    await setGrant(b.dataset.revoke,{action:'revoke',revoked:b.dataset.to==='1'});
+  });
+}
 function render(flashId){
   $('#mcount').textContent=facts.length; $('#scount').textContent=skills.length;
   $('#facts').innerHTML = facts.length? facts.map(f=>
@@ -186,10 +237,10 @@ function connectWS(){
   ws.onerror=()=>setLive(false,'Connection error — check the token');
   ws.onmessage=ev=>{
     const m=JSON.parse(ev.data);
-    if(m.type==='snapshot'){facts=m.facts;skills=m.skills;render();}
+    if(m.type==='snapshot'){facts=m.facts;skills=m.skills;grants=m.grants||[];audit=m.audit||[];allScopes=m.allScopes||allScopes;render();renderAccess();}
     else if(m.type==='memory_added'){facts.unshift({id:m.id,body:m.fact,scope:m.scope,learned:(m.client||'agent')+', just now'});render(m.id);toast('Memory added by '+(m.client||'an agent'));}
     else if(m.type==='memory_removed'){facts=facts.filter(f=>f.id!==m.id);render();}
-    else if(m.type==='skill_added'){callTool('list_skills').then(()=>refresh());}
+    else if(m.type==='skill_added'||m.type==='grant_changed'||m.type==='audit'){refresh();}
   };
 }
 async function refresh(){ws&&ws.readyState===1&&ws.send('refresh')}
