@@ -13,6 +13,7 @@ import {
 export interface Env {
   PROFILE: DurableObjectNamespace<ProfileDO>;
   BUNDLES?: R2Bucket;
+  AI?: Ai;
   MODE: string;
   PUBLIC_BASE_URL: string;
 }

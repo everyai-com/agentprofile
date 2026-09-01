@@ -22,6 +22,10 @@
   // then uncomment:
   // "r2_buckets": [{ "binding": "BUNDLES", "bucket_name": "agentprofile-bundles" }],
 
+  // Workers AI powers semantic recall (fact + query embeddings). If the binding
+  // or model is unavailable, recall degrades gracefully to keyword search.
+  "ai": { "binding": "AI" },
+
   // PUBLIC_BASE_URL empty => the worker uses the request origin, so it self-describes
   // correctly on workers.dev, a custom domain, or localhost with no reconfiguration.
   "vars": {

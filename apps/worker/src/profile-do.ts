@@ -26,6 +26,8 @@ export class ProfileDO extends DurableObject<Env> {
         updated INTEGER NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_facts_scope ON facts(scope);
+      -- config: memory provider selection etc. (key/value JSON)
+      CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT);
       CREATE TABLE IF NOT EXISTS skills (
         slug TEXT NOT NULL,
         version TEXT NOT NULL,
@@ -60,6 +62,28 @@ export class ProfileDO extends DurableObject<Env> {
         detail TEXT
       );
     `);
+    // Add the embedding column if an older profile predates semantic recall.
+    const cols = this.rows<{ name: string }>(`PRAGMA table_info(facts)`);
+    if (!cols.some((c) => c.name === "embedding")) {
+      this.sql.exec(`ALTER TABLE facts ADD COLUMN embedding BLOB`);
+    }
+  }
+
+  // ---- Embeddings (semantic recall) --------------------------------------
+  private static readonly EMBED_MODEL = "@cf/baai/bge-base-en-v1.5";
+
+  // Returns a Float32Array embedding, or null if Workers AI is unavailable.
+  private async embed(text: string): Promise<Float32Array | null> {
+    if (!this.env.AI) return null;
+    try {
+      const res = (await this.env.AI.run(ProfileDO.EMBED_MODEL, { text: [text] })) as {
+        data?: number[][];
+      };
+      const vec = res?.data?.[0];
+      return vec && vec.length ? new Float32Array(vec) : null;
+    } catch {
+      return null;
+    }
   }
 
   // ---- Live sync (WebSocket) ---------------------------------------------
@@ -275,9 +299,9 @@ export class ProfileDO extends DurableObject<Env> {
         case "get_skill":
           return { ok: true, text: await this.getSkill(req(args.slug, "slug"), str(args.format) || "claude") };
         case "remember":
-          return { ok: true, text: this.remember(req(args.fact, "fact"), str(args.scope) || "general", client) };
+          return { ok: true, text: await this.remember(req(args.fact, "fact"), str(args.scope) || "general", client) };
         case "recall":
-          return { ok: true, text: this.recall(req(args.query, "query"), str(args.scope), num(args.limit) ?? 8) };
+          return { ok: true, text: await this.recall(req(args.query, "query"), str(args.scope), num(args.limit) ?? 8) };
         case "forget":
           return { ok: true, text: this.forget(req(args.id, "id")) };
         default:
@@ -338,30 +362,63 @@ export class ProfileDO extends DurableObject<Env> {
     return renderSkill(slug, row.version, body, format);
   }
 
-  private remember(fact: string, scope: string, clientLabel: string): string {
+  private async remember(fact: string, scope: string, clientLabel: string): Promise<string> {
     const id = crypto.randomUUID();
     const now = Date.now();
+    const vec = await this.embed(fact);
     this.sql.exec(
-      `INSERT INTO facts (id, body, scope, source_client, created, updated) VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO facts (id, body, scope, source_client, created, updated, embedding) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       id,
       fact,
       scope,
       clientLabel,
       now,
       now,
+      vec ? bufFrom(vec) : null,
     );
     this.broadcast({ type: "memory_added", id, fact, scope, client: clientLabel });
     return `Remembered (id ${id}, scope ${scope}).`;
   }
 
-  private recall(query: string, scope: string | undefined, limit: number): string {
-    const facts = this.searchFacts(query, scope, Math.max(1, Math.min(50, limit)));
+  private async recall(query: string, scope: string | undefined, limit: number): Promise<string> {
+    const n = Math.max(1, Math.min(50, limit));
+    const facts = await this.searchFactsSemantic(query, scope, n);
     if (facts.length === 0) return "No matching memories.";
     return JSON.stringify(
       facts.map((f) => ({ id: f.id, fact: f.body, scope: f.scope, learned: provenance(f) })),
       null,
       2,
     );
+  }
+
+  // Semantic recall: embed the query, cosine-rank facts that have embeddings.
+  // Facts without an embedding (or the whole query, if AI is down) fall back to
+  // the keyword scorer, and the two result sets are merged by best rank.
+  private async searchFactsSemantic(query: string, scope: string | undefined, limit: number): Promise<Fact[]> {
+    const rows = scope
+      ? this.rows<FactRow>(`SELECT * FROM facts WHERE scope = ?`, scope)
+      : this.rows<FactRow>(`SELECT * FROM facts`);
+    if (rows.length === 0) return [];
+
+    const qvec = await this.embed(query);
+    if (!qvec) return this.searchFacts(query, scope, limit); // AI unavailable → keyword
+
+    const embedded: { f: FactRow; score: number }[] = [];
+    const unembedded: FactRow[] = [];
+    for (const f of rows) {
+      if (f.embedding) embedded.push({ f, score: cosine(qvec, floatsFrom(f.embedding)) });
+      else unembedded.push(f);
+    }
+    embedded.sort((a, b) => b.score - a.score);
+
+    // Keep semantically-close matches; a cosine floor avoids returning noise.
+    const semantic = embedded.filter((e) => e.score >= 0.55).map((e) => e.f);
+    if (semantic.length >= limit) return semantic.slice(0, limit);
+
+    // Top up with keyword matches over the not-yet-embedded facts.
+    const seen = new Set(semantic.map((f) => f.id));
+    const keyword = this.keywordRank(query, unembedded).filter((f) => !seen.has(f.id));
+    return [...semantic, ...keyword].slice(0, limit);
   }
 
   private forget(id: string): string {
@@ -373,36 +430,34 @@ export class ProfileDO extends DurableObject<Env> {
     return `No memory with id ${id}.`;
   }
 
-  // Phase 1 search: fuzzy keyword overlap. For each query term, match against
-  // each fact word by substring OR shared prefix (>=4 chars), so "preference"
-  // finds "prefers" and "packages" finds "package". This is a stand-in for the
-  // Phase 2 Vectorize semantic recall — good enough to be useful, and honest
-  // about its limits (it won't match true synonyms).
+  // Keyword fallback (used when Workers AI is unavailable, and to top up
+  // semantic results with not-yet-embedded facts). Fuzzy overlap: each query
+  // term matches a fact word by substring OR shared prefix (>=4 chars), so
+  // "preference" finds "prefers". Honest about its limit: no true synonyms.
   private searchFacts(query: string, scope: string | undefined, limit: number): Fact[] {
     const rows = scope
       ? this.rows<Fact>(`SELECT * FROM facts WHERE scope = ?`, scope)
       : this.rows<Fact>(`SELECT * FROM facts`);
+    return this.keywordRank(query, rows).slice(0, limit);
+  }
+
+  private keywordRank(query: string, rows: Fact[]): Fact[] {
     const terms = tokenize(query);
-    if (terms.length === 0) {
-      return rows.sort((a, b) => b.updated - a.updated).slice(0, limit);
-    }
-    const scored = rows
+    if (terms.length === 0) return [...rows].sort((a, b) => b.updated - a.updated);
+    return rows
       .map((f) => {
         const words = tokenize(f.body);
         let score = 0;
         for (const t of terms) {
           for (const w of words) {
-            if (fuzzyMatch(t, w)) {
-              score++;
-              break;
-            }
+            if (fuzzyMatch(t, w)) { score++; break; }
           }
         }
         return { f, score };
       })
       .filter((s) => s.score > 0)
-      .sort((a, b) => b.score - a.score || b.f.updated - a.f.updated);
-    return scored.slice(0, limit).map((s) => s.f);
+      .sort((a, b) => b.score - a.score || b.f.updated - a.f.updated)
+      .map((s) => s.f);
   }
 
   // ---- helpers ------------------------------------------------------------
@@ -449,6 +504,28 @@ interface Fact {
   source_client: string | null;
   created: number;
   updated: number;
+  embedding?: ArrayBuffer | null;
+}
+type FactRow = Fact;
+
+function bufFrom(vec: Float32Array): ArrayBuffer {
+  const src = new Uint8Array(vec.buffer, vec.byteOffset, vec.byteLength);
+  const out = new ArrayBuffer(src.byteLength);
+  new Uint8Array(out).set(src);
+  return out;
+}
+function floatsFrom(buf: ArrayBuffer): Float32Array {
+  return new Float32Array(buf);
+}
+function cosine(a: Float32Array, b: Float32Array): number {
+  const n = Math.min(a.length, b.length);
+  let dot = 0, na = 0, nb = 0;
+  for (let i = 0; i < n; i++) {
+    dot += a[i] * b[i];
+    na += a[i] * a[i];
+    nb += b[i] * b[i];
+  }
+  return na && nb ? dot / (Math.sqrt(na) * Math.sqrt(nb)) : 0;
 }
 
 const STOPWORDS = new Set([
